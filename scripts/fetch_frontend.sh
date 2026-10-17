@@ -11,7 +11,9 @@ trap 'rm -rf "$tmp"' EXIT
 
 echo "Downloading ${url}"
 curl -fsSL "$url" -o "$tmp/frontend-dist.zip"
-python3 -m zipfile -e "$tmp/frontend-dist.zip" "$tmp/dist"
+# Prefer python3; on Windows "python3" can be a non-working Store alias.
+if python3 -c '' 2>/dev/null; then py=python3; else py=python; fi
+"$py" -m zipfile -e "$tmp/frontend-dist.zip" "$tmp/dist"
 test -f "$tmp/dist/index.html" || { echo "Download did not contain index.html" >&2; exit 1; }
 rm -rf frontend/dist
 mkdir -p frontend
