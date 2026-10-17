@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+.env
+instance/
+uploads/
+myapp/static/uploads/
+frontend/node_modules/
+frontend/dist/
+.vite/
+*.log
+backups/
+*.tsbuildinfo

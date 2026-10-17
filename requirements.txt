@@ -1,0 +1,15 @@
+alembic==1.15.1
+blinker==1.9.0
+click==8.1.8
+email_validator==2.2.0
+Flask==3.1.0
+Flask-Login==0.6.3
+Flask-Mail==0.10.0
+Flask-Migrate==4.1.0
+Flask-SQLAlchemy==3.1.1
+Flask-WTF==1.2.2
+itsdangerous==2.2.0
+mysql-connector-python==9.5.0
+python-dotenv==1.0.1
+SQLAlchemy==2.0.39
+Werkzeug==3.1.3
