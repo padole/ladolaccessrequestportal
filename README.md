@@ -42,7 +42,9 @@ cd frontend && npm install && npm run dev   # UI on http://localhost:5180
 cd frontend && npm ci && npm run build      # outputs frontend/dist
 ```
 
-Flask serves `frontend/dist` and falls back to `index.html` for client-side routes. Run it behind a WSGI server (e.g. waitress/gunicorn) with `SESSION_COOKIE_SECURE=true` over HTTPS.
+Flask serves `frontend/dist` and falls back to `index.html` for client-side routes. Run it behind a WSGI server using `wsgi:application` (e.g. `gunicorn wsgi:application`) with `SESSION_COOKIE_SECURE=true` over HTTPS. `wsgi.py` refuses to start without a real `SECRET_KEY`.
+
+For a free review deployment, see [docs/DEPLOY_PYTHONANYWHERE.md](docs/DEPLOY_PYTHONANYWHERE.md).
 
 ## Notes
 

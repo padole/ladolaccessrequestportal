@@ -19,7 +19,9 @@ class Config:
         'DATABASE_URL', 'sqlite:///' + os.path.join(BASE_DIR, 'instance', 'accessportal.db')
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
-    SQLALCHEMY_ENGINE_OPTIONS = {'pool_pre_ping': True}
+    # Hosted MySQL (e.g. PythonAnywhere) drops idle connections after ~300s;
+    # recycle them before that so requests never get a dead connection.
+    SQLALCHEMY_ENGINE_OPTIONS = {'pool_pre_ping': True, 'pool_recycle': 280}
 
     # Session cookie hardening
     SESSION_COOKIE_HTTPONLY = True
