@@ -4,6 +4,7 @@ import { ArrowLeft, FileUp, Paperclip, Save, Send, Trash2, X } from 'lucide-reac
 import { api, type ApiError } from '../api/client';
 import { ID_CARD_OPTIONS, type AccessRequestDetail } from '../api/types';
 import { ErrorAlert, Field, Spinner } from '../components/ui';
+import { RequestModeSwitch } from '../components/RequestModeSwitch';
 import { useAuth } from '../hooks/auth';
 import { useToast } from '../hooks/toast';
 import { MAX_VISIT_DAYS, MIN_NOTICE_DAYS, addDaysIso, daysBetween, formatDate, todayIso } from '../format';
@@ -172,6 +173,7 @@ export default function RequestForm() {
           <p className="muted">Fill in the visitor's details. You can save a draft and finish it later.</p>
         </div>
       </div>
+      {!editing && !copyFrom && <RequestModeSwitch mode="single" />}
 
       <form onSubmit={onSubmit} noValidate className="stack">
         <ErrorAlert message={error} />

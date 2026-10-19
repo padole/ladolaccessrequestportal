@@ -224,11 +224,16 @@ def _filtered_query():
         if value:
             q = q.filter(column >= value if op == 'ge' else column <= value)
 
+    group_no = clean(request.args.get('group_no'))
+    if group_no:
+        q = q.filter(UserRequest.group_no == group_no)
+
     search = clean(request.args.get('search'))
     if search:
         like = f'%{search}%'
         q = q.filter(db.or_(
             UserRequest.request_no.ilike(like),
+            UserRequest.group_no.ilike(like),
             UserRequest.fullname.ilike(like),
             UserRequest.company.ilike(like),
             UserRequest.host.ilike(like),
@@ -257,11 +262,11 @@ def export_requests():
     rows = _filtered_query().all()
     out = io.StringIO()
     writer = csv.writer(out)
-    writer.writerow(['Request No.', 'Created By', 'Created', 'Full name', 'Company', 'Host', 'Email', 'Phone',
+    writer.writerow(['Request No.', 'Group No.', 'Created By', 'Created', 'Full name', 'Company', 'Host', 'Email', 'Phone',
                      'ID card', 'Expected', 'Departure', 'Days', 'Status'])
     for r in rows:
         writer.writerow([
-            r.request_no or 'DRAFT', r.user.full_name if r.user else '',
+            r.request_no or 'DRAFT', r.group_no or '', r.user.full_name if r.user else '',
             r.created_at.strftime('%Y-%m-%d') if r.created_at else '', r.fullname, r.company, r.host,
             r.email_address, r.phone_number, r.id_card.value if r.id_card else '', r.expected_date or '',
             r.departure_date or '', r.duration, r.status.name,
@@ -388,28 +393,38 @@ def submit_drafts():
 
 # --------------------------------------------------------------------------- review (admin)
 
+def apply_review(req, target_name, note):
+    """Move a submitted request to a new status as the current reviewer.
+
+    Shared by single and group reviews so both enforce the same rules.
+    Raises ApiError; does not commit or send email.
+    """
+    if target_name not in ApprovalStatusEnum.__members__:
+        raise ApiError('Unknown status.')
+    target = ApprovalStatusEnum[target_name]
+    if req.user_id == current_user.user_id:
+        raise ApiError('You cannot review your own request. Ask another Access Controller.', 403)
+    if (target in (ApprovalStatusEnum.PENDING, ApprovalStatusEnum.APPROVED)
+            and req.departure_date and req.departure_date < date.today()):
+        raise ApiError('This visit has already ended. The visitor needs a new access request.', 409)
+    if target not in STATUS_TRANSITIONS.get(req.status, ()):
+        raise ApiError(f'A {req.status.name.lower()} request cannot be changed to {target.name.lower()}.', 409)
+    note = clean(note)
+    if target in (ApprovalStatusEnum.REJECTED, ApprovalStatusEnum.TERMINATED) and not note:
+        raise ApiError('Please give a reason.', 422, {'note': 'A reason is required.'})
+    req.status = target
+    req.review_note = note or None
+    req.reviewed_at = datetime.utcnow()
+    req.reviewed_by_id = current_user.user_id
+    return target
+
+
 @api_bp.post('/requests/<int:request_id>/status')
 @controller_required
 def change_status(request_id):
     req = _get_request_or_404(request_id)
     data = payload()
-    target = data.get('status')
-    if target not in ApprovalStatusEnum.__members__:
-        return error('Unknown status.')
-    target = ApprovalStatusEnum[target]
-    if req.user_id == current_user.user_id:
-        return error('You cannot review your own request. Ask another Access Controller.', 403)
-    if target in (ApprovalStatusEnum.PENDING, ApprovalStatusEnum.APPROVED) and req.departure_date             and req.departure_date < date.today():
-        return error('This visit has already ended. The visitor needs a new access request.', 409)
-    if target not in STATUS_TRANSITIONS.get(req.status, ()):
-        return error(f'A {req.status.name.lower()} request cannot be changed to {target.name.lower()}.', 409)
-    note = clean(data.get('note'))
-    if target in (ApprovalStatusEnum.REJECTED, ApprovalStatusEnum.TERMINATED) and not note:
-        return error('Please give a reason.', 422, {'note': 'A reason is required.'})
-    req.status = target
-    req.review_note = note or None
-    req.reviewed_at = datetime.utcnow()
-    req.reviewed_by_id = current_user.user_id
+    target = apply_review(req, data.get('status'), data.get('note'))
     db.session.commit()
     _notify(req, {'PENDING': 'reopened'}.get(target.name, target.name.lower()))
     return jsonify(request=req.to_dict(detail=True))

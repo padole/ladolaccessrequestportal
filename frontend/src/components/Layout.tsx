@@ -56,7 +56,7 @@ export function AppLayout() {
           {!isAccessAdmin && (
             <>
               <div className="nav-label">My access</div>
-              <NavLink to="/requests/new"><FilePlus2 size={18} /> New request</NavLink>
+              <NavLink to="/requests/new" end><FilePlus2 size={18} /> New request</NavLink>
               <NavLink to="/requests" end><FileText size={18} /> My requests</NavLink>
               <NavLink to="/drafts">
                 <FileClock size={18} /> Drafts

@@ -17,6 +17,7 @@ _NEW_COLUMNS = [
     ('user_request', 'reviewed_by_id', 'INTEGER NULL'),
     ('user_request', 'host', "VARCHAR(200) NOT NULL DEFAULT ''"),
     ('user_request', 'expired_at', 'DATETIME NULL'),
+    ('user_request', 'group_no', 'VARCHAR(20) NULL'),
 ]
 
 
@@ -38,6 +39,10 @@ def upgrade_legacy_schema():
             if column not in existing:
                 conn.execute(text(f'ALTER TABLE {_quote(table)} ADD COLUMN {_quote(column)} {ddl}'))
                 changes.append(f'added {table}.{column}')
+
+        if 'ix_user_request_group_no' not in {i['name'] for i in inspector.get_indexes('user_request')}:
+            conn.execute(text('CREATE INDEX ix_user_request_group_no ON user_request (group_no)'))
+            changes.append('indexed user_request.group_no')
 
         request_cols = {c['name']: c for c in inspector.get_columns('user_request')}
         if 'document' not in request_cols and 'documents' in request_cols:

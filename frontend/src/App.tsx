@@ -9,6 +9,8 @@ import Dashboard from './pages/Dashboard';
 import MyRequests from './pages/MyRequests';
 import Drafts from './pages/Drafts';
 import RequestForm from './pages/RequestForm';
+import NewRequest from './pages/NewRequest';
+import GroupDetail from './pages/GroupDetail';
 import RequestDetail from './pages/RequestDetail';
 import Account from './pages/Account';
 import AdminRequests from './pages/admin/AdminRequests';
@@ -31,11 +33,12 @@ export default function App() {
         <Route element={<AppLayout />}>
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/requests/:id" element={<RequestDetail />} />
+          <Route path="/groups/:groupNo" element={<GroupDetail />} />
           <Route path="/account" element={<Account />} />
           {/* Access Admins only view requests, so they get no request-creation pages. */}
           <Route element={<RequireAuth roles={['user', 'access_controller']} />}>
             <Route path="/requests" element={<MyRequests />} />
-            <Route path="/requests/new" element={<RequestForm />} />
+            <Route path="/requests/new" element={<NewRequest />} />
             <Route path="/requests/:id/edit" element={<RequestForm />} />
             <Route path="/drafts" element={<Drafts />} />
           </Route>

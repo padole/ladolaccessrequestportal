@@ -49,4 +49,4 @@ def no_store(response):
     return response
 
 
-from myapp.api import admin, auth, requests  # noqa: E402,F401
+from myapp.api import admin, auth, groups, requests  # noqa: E402,F401

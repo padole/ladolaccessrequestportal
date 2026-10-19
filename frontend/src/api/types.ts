@@ -35,6 +35,8 @@ export const ID_CARD_OPTIONS: { value: IdCard; label: string }[] = [
 export interface AccessRequest {
   id: number;
   request_no: string | null;
+  /** Shared by requests raised together for a party of visitors. */
+  group_no: string | null;
   fullname: string;
   company: string;
   host: string;
@@ -65,6 +67,19 @@ export interface AccessRequestDetail extends AccessRequest {
   expired_at: string | null;
   reviewed_by: { id: number; full_name: string } | null;
   allowed_transitions: Status[];
+}
+
+export interface GroupSummary {
+  group_no: string;
+  created_by: { id: number; full_name: string; email: string } | null;
+  submitted_at: string | null;
+  host: string;
+  purpose: string;
+  expected_date: string | null;
+  departure_date: string | null;
+  size: number;
+  counts: Partial<Record<Status, number>>;
+  requests: (AccessRequest & { allowed_transitions: Status[] })[];
 }
 
 export interface Page<T> {

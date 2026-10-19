@@ -113,6 +113,8 @@ class UserRequest(db.Model):
     submitted_at = db.Column(db.DateTime)
     # Drafts have no request number until they are submitted.
     request_no = db.Column(db.String(20), nullable=True, unique=True)
+    # Requests raised together for a party of visitors share a group number (GRP-YYYYMMDD-NNN).
+    group_no = db.Column(db.String(20), index=True)
     fullname = db.Column(db.String(200), nullable=False, default='')
     company = db.Column(db.String(200), nullable=False, default='')
     host = db.Column(db.String(200), nullable=False, default='', server_default='')
@@ -156,6 +158,7 @@ class UserRequest(db.Model):
         data = {
             'id': self.request_id,
             'request_no': self.request_no,
+            'group_no': self.group_no,
             'fullname': self.fullname,
             'company': self.company,
             'host': self.host,

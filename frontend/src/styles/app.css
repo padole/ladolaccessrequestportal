@@ -327,3 +327,20 @@ table.table { width: 100%; border-collapse: collapse; }
 .entry-ok { background: var(--success-soft); border-color: var(--success); color: var(--success); }
 .entry-warn { background: var(--warning-soft); border-color: var(--warning); color: var(--warning); }
 .entry-no { background: var(--danger-soft); border-color: var(--danger); color: var(--danger); }
+
+/* ---------- Request mode switch ---------- */
+.mode-switch { display: inline-flex; gap: 4px; padding: 4px; background: var(--neutral-soft); border-radius: var(--radius); margin-bottom: 20px; }
+.mode-switch a { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: var(--radius-sm); color: var(--text-muted); font-weight: 500; text-decoration: none; }
+.mode-switch a:hover { color: var(--text); text-decoration: none; }
+.mode-switch a.active { background: var(--surface); color: var(--brand-strong); box-shadow: var(--shadow); }
+
+/* ---------- Group visitors table ---------- */
+.visitor-table td { padding: 6px 8px; vertical-align: top; }
+.visitor-table th { padding: 8px; }
+.visitor-table .input, .visitor-table .select { height: 34px; min-width: 130px; }
+.visitor-table .row-no { color: var(--text-faint); padding-top: 14px; width: 1%; }
+.visitor-table .cell-err { display: block; color: var(--danger); font-size: 12px; margin-top: 3px; }
+.visitor-table .invalid { border-color: var(--danger); }
+.group-tag { white-space: nowrap; display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; font-weight: 600; color: var(--brand-strong); background: var(--brand-soft); padding: 1px 7px; border-radius: 99px; text-decoration: none; margin-top: 3px; }
+.group-tag:hover { text-decoration: none; filter: brightness(.97); }
+.action-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 12px 16px; border-bottom: 1px solid var(--border); background: var(--surface-2); }

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { Copy, ShieldAlert, ShieldCheck, ArrowLeft, CheckCircle2, Download, ExternalLink, Paperclip, Pencil, RotateCcw, Ban, XCircle } from 'lucide-react';
+import { Users, Copy, ShieldAlert, ShieldCheck, ArrowLeft, CheckCircle2, Download, ExternalLink, Paperclip, Pencil, RotateCcw, Ban, XCircle } from 'lucide-react';
 import { api, type ApiError } from '../api/client';
 import type { AccessRequestDetail } from '../api/types';
 import { useAuth } from '../hooks/auth';
@@ -83,6 +83,11 @@ export default function RequestDetail() {
             {r.submitted_at ? `Submitted ${formatDateTime(r.submitted_at)}` : `Created ${formatDateTime(r.created_at)}`}
             {r.created_by && !isOwner && <> by <strong>{r.created_by.full_name}</strong> ({r.created_by.email})</>}
           </p>
+          {r.group_no && (
+            <Link className="group-tag" to={`/groups/${r.group_no}`} style={{ marginTop: 8 }}>
+              <Users size={12} /> Part of group {r.group_no}. View the whole group
+            </Link>
+          )}
         </div>
         {r.status === 'DRAFT' && isOwner && (
           <Link className="btn btn-primary" to={`/requests/${r.id}/edit`}><Pencil size={16} /> Continue editing</Link>

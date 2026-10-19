@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Download, Search, SlidersHorizontal, X, Paperclip } from 'lucide-react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Download, Search, SlidersHorizontal, X, Paperclip, Users } from 'lucide-react';
 import { toQuery } from '../api/client';
 import type { AccessRequest, Page, Status } from '../api/types';
 import { useFetch } from '../hooks/useFetch';
@@ -26,6 +26,7 @@ export function RequestsTable({ scope, emptyAction }: { scope: 'mine' | 'all'; e
     scope: scope === 'all' ? 'all' : undefined,
     status,
     search: params.get('search'),
+    group_no: params.get('group_no'),
     page: params.get('page'),
     ...Object.fromEntries(DATE_FILTERS.map(([k]) => [k, params.get(k)])),
   };
@@ -116,6 +117,12 @@ export function RequestsTable({ scope, emptyAction }: { scope: 'mine' | 'all'; e
                   <tr key={r.id} className="clickable" onClick={() => navigate(`/requests/${r.id}`)}>
                     <td>
                       <div className="cell-main mono">{r.request_no}</div>
+                      {r.group_no && (
+                        <Link className="group-tag" to={`/groups/${r.group_no}`} onClick={(e) => e.stopPropagation()}
+                          title="Part of a group request. Open the group.">
+                          <Users size={11} /> {r.group_no}
+                        </Link>
+                      )}
                       <div className="cell-sub">{formatDate(r.submitted_at ?? r.created_at)}</div>
                     </td>
                     <td>
