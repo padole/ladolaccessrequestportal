@@ -15,6 +15,8 @@ export interface User {
   full_name: string;
   email: string;
   phone: string;
+  job_title: string;
+  company: string;
   role: Role;
   role_label: string;
   is_active: boolean;
@@ -24,13 +26,22 @@ export interface User {
 }
 
 export type Status = 'DRAFT' | 'PENDING' | 'APPROVED' | 'REJECTED' | 'TERMINATED' | 'EXPIRED';
-export type IdCard = 'vistor' | 'parmanent' | 'not_applicable';
+export type IdCard = 'visitor_72h' | 'visitor_15d' | 'visitor_1m' | 'visitor_3m' | 'parmanent' | 'not_applicable'
+  | 'vistor'; // retired plain "Visitor ID", only on older requests
 
 export const ID_CARD_OPTIONS: { value: IdCard; label: string }[] = [
-  { value: 'vistor', label: 'Visitor ID' },
+  { value: 'visitor_72h', label: 'Visitor ID - 72 hours' },
+  { value: 'visitor_15d', label: 'Visitor ID - 15 days' },
+  { value: 'visitor_1m', label: 'Visitor ID - 1 month' },
+  { value: 'visitor_3m', label: 'Visitor ID - 3 months' },
   { value: 'parmanent', label: 'Permanent ID' },
   { value: 'not_applicable', label: 'Not applicable' },
 ];
+
+/** An ID card value the form can still offer; retired values come back empty so the user re-picks. */
+export function currentIdCard(value: IdCard | null): string {
+  return value && ID_CARD_OPTIONS.some((o) => o.value === value) ? value : '';
+}
 
 export interface AccessRequest {
   id: number;
@@ -39,6 +50,8 @@ export interface AccessRequest {
   group_no: string | null;
   fullname: string;
   company: string;
+  job_title: string;
+  country: string;
   host: string;
   /** Legacy: no longer collected, present on older requests. */
   job_role: string;

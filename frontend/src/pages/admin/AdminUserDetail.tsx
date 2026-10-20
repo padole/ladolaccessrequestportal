@@ -92,6 +92,8 @@ export default function AdminUserDetail() {
             <dl className="card-body dl" style={{ gridTemplateColumns: '1fr' }}>
               <div><dt>Email</dt><dd><a href={`mailto:${u.email}`}>{u.email}</a></dd></div>
               <div><dt>Phone</dt><dd>{u.phone}</dd></div>
+              <div><dt>Job title</dt><dd>{u.job_title || '—'}</dd></div>
+              <div><dt>Company</dt><dd>{u.company || '—'}</dd></div>
               <div><dt>Joined</dt><dd>{formatDate(u.created_at)}</dd></div>
               <div><dt>Last sign-in</dt><dd>{formatDateTime(u.last_login_at)}</dd></div>
             </dl>

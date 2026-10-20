@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Download, Search, SlidersHorizontal, X, Paperclip, Users } from 'lucide-react';
 import { toQuery } from '../api/client';
-import type { AccessRequest, Page, Status } from '../api/types';
+import { ID_CARD_OPTIONS, type AccessRequest, type Page, type Status } from '../api/types';
 import { useFetch } from '../hooks/useFetch';
 import { formatDate } from '../format';
 import { Empty, ErrorAlert, Pager, Spinner, StatusBadge, STATUS_LABEL } from './ui';
@@ -27,6 +27,7 @@ export function RequestsTable({ scope, emptyAction }: { scope: 'mine' | 'all'; e
     status,
     search: params.get('search'),
     group_no: params.get('group_no'),
+    id_card: params.get('id_card'),
     page: params.get('page'),
     ...Object.fromEntries(DATE_FILTERS.map(([k]) => [k, params.get(k)])),
   };
@@ -49,7 +50,7 @@ export function RequestsTable({ scope, emptyAction }: { scope: 'mine' | 'all'; e
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search]);
 
-  const hasFilters = !!(params.get('search') || DATE_FILTERS.some(([k]) => params.get(k)));
+  const hasFilters = !!(params.get('search') || params.get('id_card') || DATE_FILTERS.some(([k]) => params.get(k)));
   const exportUrl = `/api/requests/export${toQuery({ ...filters, page: undefined })}`;
 
   return (
@@ -79,11 +80,17 @@ export function RequestsTable({ scope, emptyAction }: { scope: 'mine' | 'all'; e
           {hasFilters && (
             <button className="btn btn-ghost" onClick={() => {
               setSearch('');
-              update({ search: null, ...Object.fromEntries(DATE_FILTERS.map(([k]) => [k, null])) });
+              update({ search: null, id_card: null, ...Object.fromEntries(DATE_FILTERS.map(([k]) => [k, null])) });
             }}>
               <X size={15} /> Clear
             </button>
           )}
+          <select className="select" style={{ width: 'auto' }} aria-label="Filter by ID card"
+            value={params.get('id_card') ?? ''} onChange={(e) => update({ id_card: e.target.value || null })}>
+            <option value="">All ID cards</option>
+            {ID_CARD_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+            <option value="vistor">Visitor ID (old)</option>
+          </select>
           <button className={`btn ${showDates ? 'btn-primary' : ''}`} onClick={() => setShowDates((s) => !s)}>
             <SlidersHorizontal size={15} /> Filter by Dates
           </button>
@@ -108,6 +115,8 @@ export function RequestsTable({ scope, emptyAction }: { scope: 'mine' | 'all'; e
                   <th>Visitor</th>
                   {scope === 'all' && <th className="hide-sm">Requested by</th>}
                   <th>Visit dates</th>
+                  <th className="shrink">Days</th>
+                  <th>ID card</th>
                   <th className="hide-lg">Host</th>
                   <th className="shrink">Status</th>
                 </tr>
@@ -132,11 +141,10 @@ export function RequestsTable({ scope, emptyAction }: { scope: 'mine' | 'all'; e
                     {scope === 'all' && <td className="hide-sm">{r.created_by?.full_name}</td>}
                     <td>
                       <div>{formatDate(r.expected_date)} – {formatDate(r.departure_date)}</div>
-                      <div className="cell-sub">
-                        {r.duration} day{r.duration === '1' ? '' : 's'}
-                        {r.document_count > 0 && <> · <Paperclip size={11} /> {r.document_count}</>}
-                      </div>
+                      {r.document_count > 0 && <div className="cell-sub"><Paperclip size={11} /> {r.document_count}</div>}
                     </td>
+                    <td className="shrink" style={{ textAlign: 'center' }}>{r.duration || '—'}</td>
+                    <td className="muted">{r.id_card_label ?? '—'}</td>
                     <td className="hide-lg">{r.host || '—'}</td>
                     <td className="shrink"><StatusBadge status={r.status} /></td>
                   </tr>

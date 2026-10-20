@@ -2,19 +2,20 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, FileUp, Paperclip, Save, Send, Trash2, X } from 'lucide-react';
 import { api, type ApiError } from '../api/client';
-import { ID_CARD_OPTIONS, type AccessRequestDetail } from '../api/types';
+import { ID_CARD_OPTIONS, currentIdCard, type AccessRequestDetail } from '../api/types';
 import { ErrorAlert, Field, Spinner } from '../components/ui';
 import { RequestModeSwitch } from '../components/RequestModeSwitch';
+import { COUNTRIES, COUNTRY_LIST_ID } from '../countries';
 import { useAuth } from '../hooks/auth';
 import { useToast } from '../hooks/toast';
-import { MAX_VISIT_DAYS, MIN_NOTICE_DAYS, addDaysIso, daysBetween, formatDate, todayIso } from '../format';
+import { daysBetween, todayIso } from '../format';
 
 const MAX_FILES = 5;
 const MAX_BYTES = 10 * 1024 * 1024;
 const ACCEPT = '.pdf,.jpg,.jpeg,.png,.docx';
 
 const EMPTY = {
-  fullname: '', company: '', email: '', phone: '', id_card: 'vistor',
+  fullname: '', company: '', job_title: '', country: '', email: '', phone: '', id_card: '',
   host: '', expected_date: '', departure_date: '', purpose: '',
 };
 type FormState = typeof EMPTY;
@@ -50,8 +51,9 @@ export default function RequestForm() {
           return;
         }
         setForm({
-          fullname: r.fullname, company: r.company, email: r.email, phone: r.phone,
-          id_card: r.id_card ?? 'vistor', host: r.host, expected_date: r.expected_date ?? '',
+          fullname: r.fullname, company: r.company, job_title: r.job_title ?? '', country: r.country ?? '',
+          email: r.email, phone: r.phone,
+          id_card: currentIdCard(r.id_card), host: r.host, expected_date: r.expected_date ?? '',
           departure_date: r.departure_date ?? '', purpose: r.purpose,
         });
         setExisting(r.documents);
@@ -67,8 +69,9 @@ export default function RequestForm() {
         // Dates and documents are deliberately not copied: the new visit needs its own.
         setForm({
           ...EMPTY,
-          fullname: r.fullname, company: r.company, email: r.email, phone: r.phone,
-          id_card: r.id_card ?? 'vistor', host: r.host, purpose: r.purpose,
+          fullname: r.fullname, company: r.company, job_title: r.job_title ?? '', country: r.country ?? '',
+          email: r.email, phone: r.phone,
+          id_card: currentIdCard(r.id_card), host: r.host, purpose: r.purpose,
         });
         setCopiedFrom(r.request_no);
       })
@@ -83,7 +86,8 @@ export default function RequestForm() {
 
   const fillMyDetails = () => {
     if (!user) return;
-    setForm((f) => ({ ...f, fullname: user.full_name, email: user.email, phone: user.phone }));
+    setForm((f) => ({ ...f, fullname: user.full_name, email: user.email, phone: user.phone,
+      company: user.company || f.company, job_title: user.job_title || f.job_title }));
   };
 
   const keptExisting = existing.filter((d) => !removed.includes(d.name));
@@ -109,14 +113,16 @@ export default function RequestForm() {
     ? daysBetween(form.expected_date, form.departure_date) : null;
 
   // Same rules the server enforces on submit, shown as the user picks dates.
-  const earliestArrival = addDaysIso(todayIso(), MIN_NOTICE_DAYS);
-  const latestDeparture = form.expected_date ? addDaysIso(form.expected_date, MAX_VISIT_DAYS - 1) : undefined;
-  const arrivalError = form.expected_date && form.expected_date < earliestArrival
-    ? `Arrival must be at least 48 hours from today (on or after ${formatDate(earliestArrival)}).` : '';
+  // A new request can be back-dated; a saved draft being edited can't.
+  const today = todayIso();
+  const earliestArrival = editing ? today : undefined;
+  const earliestDeparture = form.expected_date && form.expected_date > today ? form.expected_date : today;
+  const arrivalError = editing && form.expected_date && form.expected_date < today
+    ? 'Arrival cannot be in the past for a saved draft. Only a new request can be back-dated.' : '';
   const departureError = form.departure_date && form.expected_date && form.departure_date < form.expected_date
     ? 'Departure must be on or after the arrival date.'
-    : latestDeparture && form.departure_date > latestDeparture
-      ? `A visit can last at most ${MAX_VISIT_DAYS} days (depart by ${formatDate(latestDeparture)}).` : '';
+    : form.departure_date && form.departure_date < today
+      ? 'Departure must be today or later.' : '';
 
   const save = async (action: 'draft' | 'submit') => {
     setBusy(action);
@@ -177,6 +183,7 @@ export default function RequestForm() {
 
       <form onSubmit={onSubmit} noValidate className="stack">
         <ErrorAlert message={error} />
+        <p className="required-note">Fields marked <span className="req">*</span> are required.</p>
         {copiedFrom && (
           <div className="alert alert-info">
             Visitor details copied from {copiedFrom}. Choose new visit dates and attach any documents that are needed.
@@ -189,16 +196,25 @@ export default function RequestForm() {
             <button type="button" className="btn btn-sm" onClick={fillMyDetails}>The visitor is me</button>
           </div>
           <div className="card-body form-grid">
-            <Field label="Full name" error={errors.fullname} htmlFor="fullname">
+            <Field label="Full name" required error={errors.fullname} htmlFor="fullname">
               <input id="fullname" className="input" value={form.fullname} onChange={set('fullname')} />
             </Field>
             <Field label="Company" error={errors.company} htmlFor="company">
               <input id="company" className="input" value={form.company} onChange={set('company')} />
             </Field>
-            <Field label="ID card" error={errors.id_card} htmlFor="id_card">
+            <Field label="ID card" required error={errors.id_card} htmlFor="id_card">
               <select id="id_card" className="select" value={form.id_card} onChange={set('id_card')}>
+                <option value="" disabled>Select ID card</option>
                 {ID_CARD_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
+            </Field>
+            <Field label="Country" error={errors.country} htmlFor="country">
+              <input id="country" className="input" list={COUNTRY_LIST_ID} autoComplete="country-name" value={form.country} onChange={set('country')} />
+              <datalist id={COUNTRY_LIST_ID}>{COUNTRIES.map((c) => <option key={c} value={c} />)}</datalist>
+            </Field>
+            <Field label="Job title" required={form.id_card === 'parmanent'}
+              error={errors.job_title} hint={form.id_card === 'parmanent' ? 'Required for Permanent ID.' : 'Required if the ID card is Permanent ID.'} htmlFor="job_title">
+              <input id="job_title" className="input" value={form.job_title} onChange={set('job_title')} />
             </Field>
             <Field label="Email" error={errors.email} hint="Status updates are sent here and to you." htmlFor="email">
               <input id="email" type="email" className="input" value={form.email} onChange={set('email')} />
@@ -212,17 +228,17 @@ export default function RequestForm() {
         <div className="card">
           <div className="card-header"><h2>Visit</h2>{duration && <span className="badge badge-user">{duration} day{duration === 1 ? '' : 's'}</span>}</div>
           <div className="card-body form-grid">
-            <Field label="Expected arrival" error={arrivalError || errors.expected_date} hint="At least 48 hours from today." htmlFor="expected_date">
+            <Field label="Expected arrival" required error={arrivalError || errors.expected_date} hint={editing ? 'Today or later.' : 'Can be a past date when you submit this request now.'} htmlFor="expected_date">
               <input id="expected_date" type="date" className="input" min={earliestArrival} value={form.expected_date} onChange={set('expected_date')} />
             </Field>
-            <Field label="Departure" error={departureError || errors.departure_date} hint={`Visits can last up to ${MAX_VISIT_DAYS} days.`} htmlFor="departure_date">
-              <input id="departure_date" type="date" className="input" min={form.expected_date || earliestArrival} max={latestDeparture}
+            <Field label="Departure" required error={departureError || errors.departure_date} htmlFor="departure_date">
+              <input id="departure_date" type="date" className="input" min={earliestDeparture}
                 value={form.departure_date} onChange={set('departure_date')} />
             </Field>
             <Field label="Host" error={errors.host} hint="The LADOL staff member the visitor is meeting." className="span-2" htmlFor="host">
               <input id="host" className="input" value={form.host} onChange={set('host')} />
             </Field>
-            <Field label="Purpose of visit" error={errors.purpose} className="span-2" hint={`${form.purpose.length}/250`} htmlFor="purpose">
+            <Field label="Purpose of visit" required error={errors.purpose} className="span-2" hint={`${form.purpose.length}/250`} htmlFor="purpose">
               <textarea id="purpose" className="textarea" maxLength={250} value={form.purpose} onChange={set('purpose')} />
             </Field>
           </div>

@@ -47,7 +47,7 @@ export default function AdminUsers() {
         <div className="filters" style={{ gridTemplateColumns: 'minmax(180px, 1fr) 150px 150px' }}>
           <div className="search">
             <Search size={16} />
-            <input className="input" placeholder="Search name, email or phone" value={search}
+            <input className="input" placeholder="Search name, email, phone or company" value={search}
               onChange={(e) => setSearch(e.target.value)} aria-label="Search users" />
           </div>
           <select className="select" aria-label="Filter by role" value={params.get('role') ?? ''} onChange={(e) => update({ role: e.target.value || null })}>
@@ -78,6 +78,9 @@ export default function AdminUsers() {
                             <Link className="cell-main" to={`/admin/users/${u.id}`}>{u.full_name}</Link>
                             {u.id === me?.id && <span className="faint small"> (you)</span>}
                             <div className="cell-sub">{u.email}</div>
+                            {(u.job_title || u.company) && (
+                              <div className="cell-sub">{[u.job_title, u.company].filter(Boolean).join(' · ')}</div>
+                            )}
                           </div>
                         </div>
                       </td>

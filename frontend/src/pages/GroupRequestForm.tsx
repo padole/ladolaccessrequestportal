@@ -5,20 +5,21 @@ import { api, type ApiError } from '../api/client';
 import { ID_CARD_OPTIONS, type GroupSummary } from '../api/types';
 import { ErrorAlert, Field, Modal } from '../components/ui';
 import { RequestModeSwitch } from '../components/RequestModeSwitch';
+import { COUNTRIES, COUNTRY_LIST_ID } from '../countries';
 import { useToast } from '../hooks/toast';
-import { MAX_VISIT_DAYS, MIN_NOTICE_DAYS, addDaysIso, daysBetween, formatDate, todayIso } from '../format';
+import { daysBetween, todayIso } from '../format';
 
 const MAX_VISITORS = 50;
 const MAX_FILES = 5;
 const MAX_BYTES = 10 * 1024 * 1024;
 const ACCEPT = '.pdf,.jpg,.jpeg,.png,.docx';
-const TEMPLATE = 'Full name,Company,Email,Phone\r\n';
+const TEMPLATE = 'Full name,Company,Job title,Country,Email,Phone\r\n';
 
-interface Visitor { fullname: string; company: string; email: string; phone: string; id_card: string }
-const blankVisitor = (): Visitor => ({ fullname: '', company: '', email: '', phone: '', id_card: '' });
-const hasData = (v: Visitor) => !!(v.fullname || v.company || v.email || v.phone);
+interface Visitor { fullname: string; company: string; job_title: string; country: string; email: string; phone: string; id_card: string }
+const blankVisitor = (): Visitor => ({ fullname: '', company: '', job_title: '', country: '', email: '', phone: '', id_card: '' });
+const hasData = (v: Visitor) => !!(v.fullname || v.company || v.job_title || v.country || v.email || v.phone);
 
-const SHARED = { company: '', id_card: 'vistor', host: '', expected_date: '', departure_date: '', purpose: '' };
+const SHARED = { company: '', country: '', id_card: '', host: '', expected_date: '', departure_date: '', purpose: '' };
 
 /** Split pasted spreadsheet rows (tab-separated) or CSV lines into visitors. */
 function parseRows(text: string): Visitor[] {
@@ -28,7 +29,8 @@ function parseRows(text: string): Visitor[] {
   if (rows.length && /name/i.test(rows[0][0] ?? '')) rows.shift(); // header row
   return rows
     .filter((r) => r.some(Boolean))
-    .map(([fullname = '', company = '', email = '', phone = '']) => ({ fullname, company, email, phone, id_card: '' }));
+    .map(([fullname = '', company = '', job_title = '', country = '', email = '', phone = '']) =>
+      ({ fullname, company, job_title, country, email, phone, id_card: '' }));
 }
 
 function splitCsv(line: string): string[] {
@@ -61,7 +63,7 @@ export default function GroupRequestForm() {
   const [pasteText, setPasteText] = useState('');
 
   const filled = visitors.filter(hasData);
-  const dirty = filled.length > 0 || Object.values(shared).some((v) => v && v !== 'vistor');
+  const dirty = filled.length > 0 || Object.values(shared).some(Boolean);
 
   // Warn before leaving with unsaved rows (groups can't be saved as drafts).
   useEffect(() => {
@@ -135,14 +137,14 @@ export default function GroupRequestForm() {
   };
 
   // Same date rules the server enforces, shown as the user picks dates.
-  const earliestArrival = addDaysIso(todayIso(), MIN_NOTICE_DAYS);
-  const latestDeparture = shared.expected_date ? addDaysIso(shared.expected_date, MAX_VISIT_DAYS - 1) : undefined;
-  const arrivalError = shared.expected_date && shared.expected_date < earliestArrival
-    ? `Arrival must be at least 48 hours from today (on or after ${formatDate(earliestArrival)}).` : '';
+  // Group requests are always new, so arrival may be back-dated; departure can't be in the past.
+  const today = todayIso();
+  const earliestDeparture = shared.expected_date && shared.expected_date > today ? shared.expected_date : today;
+  const arrivalError = '';
   const departureError = shared.departure_date && shared.expected_date && shared.departure_date < shared.expected_date
     ? 'Departure must be on or after the arrival date.'
-    : latestDeparture && shared.departure_date > latestDeparture
-      ? `A visit can last at most ${MAX_VISIT_DAYS} days (depart by ${formatDate(latestDeparture)}).` : '';
+    : shared.departure_date && shared.departure_date < today
+      ? 'Departure must be today or later.' : '';
   const duration = shared.expected_date && shared.departure_date && shared.departure_date >= shared.expected_date
     ? daysBetween(shared.expected_date, shared.departure_date) : null;
 
@@ -177,6 +179,19 @@ export default function GroupRequestForm() {
 
   const rowErr = (i: number, k: string) => errors[`visitors.${i}.${k}`];
 
+  // One text input cell in the visitors table.
+  const textCell = (v: Visitor, i: number, k: Exclude<keyof Visitor, 'id_card'>) => (
+    <td key={k}>
+      <input className={`input ${rowErr(i, k) ? 'invalid' : ''}`} value={v[k]}
+        type={k === 'email' ? 'email' : k === 'phone' ? 'tel' : 'text'}
+        placeholder={k === 'company' ? shared.company || 'Company' : k === 'country' ? shared.country || 'Country' : undefined}
+        list={k === 'country' ? COUNTRY_LIST_ID : undefined}
+        aria-label={`Visitor ${i + 1} ${k === 'fullname' ? 'full name' : k.replace('_', ' ')}`}
+        onChange={(e) => setVisitor(i, k, e.target.value)} />
+      {rowErr(i, k) && <span className="cell-err">{rowErr(i, k)}</span>}
+    </td>
+  );
+
   return (
     <>
       <Link className="backlink" to="/requests"><ArrowLeft size={14} /> Back</Link>
@@ -190,6 +205,7 @@ export default function GroupRequestForm() {
 
       <form onSubmit={submit} noValidate className="stack">
         <ErrorAlert message={error} />
+        <p className="required-note">Fields marked <span className="req">*</span> are required.</p>
 
         <div className="card">
           <div className="card-header">
@@ -197,11 +213,11 @@ export default function GroupRequestForm() {
             {duration && <span className="badge badge-role-user">{duration} day{duration === 1 ? '' : 's'}</span>}
           </div>
           <div className="card-body form-grid">
-            <Field label="Expected arrival" error={arrivalError || errors.expected_date} hint="At least 48 hours from today." htmlFor="g_arrival">
-              <input id="g_arrival" type="date" className="input" min={earliestArrival} value={shared.expected_date} onChange={setField('expected_date')} />
+            <Field label="Expected arrival" required error={arrivalError || errors.expected_date} hint="Can be a past date." htmlFor="g_arrival">
+              <input id="g_arrival" type="date" className="input" value={shared.expected_date} onChange={setField('expected_date')} />
             </Field>
-            <Field label="Departure" error={departureError || errors.departure_date} hint={`Visits can last up to ${MAX_VISIT_DAYS} days.`} htmlFor="g_departure">
-              <input id="g_departure" type="date" className="input" min={shared.expected_date || earliestArrival} max={latestDeparture}
+            <Field label="Departure" required error={departureError || errors.departure_date} htmlFor="g_departure">
+              <input id="g_departure" type="date" className="input" min={earliestDeparture}
                 value={shared.departure_date} onChange={setField('departure_date')} />
             </Field>
             <Field label="Host" error={errors.host} hint="The LADOL staff member the visitors are meeting." htmlFor="g_host">
@@ -210,12 +226,17 @@ export default function GroupRequestForm() {
             <Field label="Default company" error={errors.company} hint="Used for any visitor whose company is left blank." htmlFor="g_company">
               <input id="g_company" className="input" value={shared.company} onChange={setField('company')} />
             </Field>
-            <Field label="Default ID card" htmlFor="g_idcard">
+            <Field label="Default country" error={errors.country} hint="Used for any visitor whose country is left blank." htmlFor="g_country">
+              <input id="g_country" className="input" list={COUNTRY_LIST_ID} value={shared.country} onChange={setField('country')} />
+              <datalist id={COUNTRY_LIST_ID}>{COUNTRIES.map((c) => <option key={c} value={c} />)}</datalist>
+            </Field>
+            <Field label="Default ID card" required error={errors.id_card} hint="Used for any visitor whose ID card is left as Default." htmlFor="g_idcard">
               <select id="g_idcard" className="select" value={shared.id_card} onChange={setField('id_card')}>
+                <option value="" disabled>Select ID card</option>
                 {ID_CARD_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
             </Field>
-            <Field label="Purpose of visit" error={errors.purpose} className="span-2" hint={`${shared.purpose.length}/250`} htmlFor="g_purpose">
+            <Field label="Purpose of visit" required error={errors.purpose} className="span-2" hint={`${shared.purpose.length}/250`} htmlFor="g_purpose">
               <textarea id="g_purpose" className="textarea" maxLength={250} value={shared.purpose} onChange={setField('purpose')} />
             </Field>
           </div>
@@ -235,22 +256,13 @@ export default function GroupRequestForm() {
           <div className="table-wrap">
             <table className="table visitor-table">
               <thead>
-                <tr><th>#</th><th>Full name *</th><th>Company</th><th>Email</th><th>Phone</th><th>ID card</th><th /></tr>
+                <tr><th>#</th><th>Full name <span className="req">*</span></th><th>Company</th><th>ID card</th><th title="Required for Permanent ID">Job title <span className="req" title="Required for Permanent ID">*</span></th><th>Country</th><th>Email</th><th>Phone</th><th /></tr>
               </thead>
               <tbody>
                 {visitors.map((v, i) => (
                   <tr key={i}>
                     <td className="row-no">{i + 1}</td>
-                    {(['fullname', 'company', 'email', 'phone'] as const).map((k) => (
-                      <td key={k}>
-                        <input className={`input ${rowErr(i, k) ? 'invalid' : ''}`} value={v[k]}
-                          type={k === 'email' ? 'email' : k === 'phone' ? 'tel' : 'text'}
-                          placeholder={k === 'company' ? shared.company || 'Company' : undefined}
-                          aria-label={`Visitor ${i + 1} ${k === 'fullname' ? 'full name' : k}`}
-                          onChange={(e) => setVisitor(i, k, e.target.value)} />
-                        {rowErr(i, k) && <span className="cell-err">{rowErr(i, k)}</span>}
-                      </td>
-                    ))}
+                    {(['fullname', 'company'] as const).map((k) => textCell(v, i, k))}
                     <td>
                       <select className="select" value={v.id_card} aria-label={`Visitor ${i + 1} ID card`}
                         onChange={(e) => setVisitor(i, 'id_card', e.target.value)}>
@@ -258,6 +270,7 @@ export default function GroupRequestForm() {
                         {ID_CARD_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                       </select>
                     </td>
+                    {(['job_title', 'country', 'email', 'phone'] as const).map((k) => textCell(v, i, k))}
                     <td className="shrink">
                       <button type="button" className="icon-btn" aria-label={`Remove visitor ${i + 1}`} onClick={() => removeRow(i)}><Trash2 size={15} /></button>
                     </td>
@@ -271,7 +284,7 @@ export default function GroupRequestForm() {
               onClick={() => setVisitors((vs) => [...vs, blankVisitor()])}><Plus size={14} /> Add visitor</button>
             <button type="button" className="btn btn-sm btn-ghost" disabled={visitors.length >= MAX_VISITORS}
               onClick={() => setVisitors((vs) => [...vs, ...Array.from({ length: Math.min(5, MAX_VISITORS - vs.length) }, blankVisitor)])}>Add 5 rows</button>
-            <span className="muted small">Only the full name is required. Email and phone are optional.</span>
+            <span className="muted small">Full name is required, and job title for a Permanent ID. Other columns are optional.</span>
           </div>
         </div>
 
@@ -322,10 +335,10 @@ export default function GroupRequestForm() {
           </>}
         >
           <p className="muted small">
-            In Excel, select the columns <strong>Full name, Company, Email, Phone</strong> (in that order) and copy them. Paste below. A header row is skipped automatically.
+            In Excel, select the columns <strong>Full name, Company, Job title, Country, Email, Phone</strong> (in that order) and copy them. Paste below. A header row is skipped automatically.
           </p>
           <textarea className="textarea" style={{ minHeight: 180, fontFamily: 'ui-monospace, Consolas, monospace' }} autoFocus
-            value={pasteText} onChange={(e) => setPasteText(e.target.value)} placeholder={'Jane Doe\tSaipem\tjane@saipem.com\t0803…'} />
+            value={pasteText} onChange={(e) => setPasteText(e.target.value)} placeholder={'Jane Doe\tSaipem\tWelder\tNigeria\tjane@saipem.com\t0803…'} />
         </Modal>
       )}
     </>

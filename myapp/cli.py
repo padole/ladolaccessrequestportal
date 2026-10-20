@@ -3,13 +3,15 @@ import getpass
 import click
 from sqlalchemy import inspect, text
 
-from myapp.models import ApprovalStatusEnum, Role, User, db, expire_overdue_requests
+from myapp.models import ApprovalStatusEnum, IDCardEnum, Role, User, db, expire_overdue_requests
 
 # Columns added since the original schema: (table, column, DDL type)
 _NEW_COLUMNS = [
     ('user', 'role', "VARCHAR(20) NOT NULL DEFAULT 'user'"),
     ('user', 'created_at', 'DATETIME NULL'),
     ('user', 'last_login_at', 'DATETIME NULL'),
+    ('user', 'user_job_title', "VARCHAR(200) NOT NULL DEFAULT ''"),
+    ('user', 'user_company', "VARCHAR(200) NOT NULL DEFAULT ''"),
     ('user_request', 'updated_at', 'DATETIME NULL'),
     ('user_request', 'submitted_at', 'DATETIME NULL'),
     ('user_request', 'review_note', 'TEXT NULL'),
@@ -18,6 +20,7 @@ _NEW_COLUMNS = [
     ('user_request', 'host', "VARCHAR(200) NOT NULL DEFAULT ''"),
     ('user_request', 'expired_at', 'DATETIME NULL'),
     ('user_request', 'group_no', 'VARCHAR(20) NULL'),
+    ('user_request', 'country', "VARCHAR(100) NOT NULL DEFAULT ''"),
 ]
 
 
@@ -65,6 +68,12 @@ def upgrade_legacy_schema():
             if 'TEXT' not in str(cols['document']['type']).upper():
                 conn.execute(text('ALTER TABLE user_request MODIFY document TEXT NULL'))
                 changes.append('widened user_request.document to TEXT')
+            id_wanted = [c.name for c in IDCardEnum]
+            id_existing = getattr(cols['id_card']['type'], 'enums', None) or []
+            if any(c not in id_existing for c in id_wanted):
+                values = ','.join(f"'{c}'" for c in id_wanted)
+                conn.execute(text(f'ALTER TABLE user_request MODIFY id_card ENUM({values}) NULL'))
+                changes.append('added the new visitor ID card types to user_request.id_card')
             wanted = [s.name for s in ApprovalStatusEnum]
             existing = getattr(cols['status']['type'], 'enums', None) or []
             missing = [s for s in wanted if s not in existing]

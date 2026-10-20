@@ -10,7 +10,10 @@ import { RoleBadge } from '../components/RoleControls';
 function ProfileCard() {
   const { user, setUser } = useAuth();
   const toast = useToast();
-  const [form, setForm] = useState({ first_name: user!.first_name, last_name: user!.last_name, phone: user!.phone });
+  const [form, setForm] = useState({
+    first_name: user!.first_name, last_name: user!.last_name, phone: user!.phone,
+    job_title: user!.job_title ?? '', company: user!.company ?? '',
+  });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
 
@@ -40,6 +43,8 @@ function ProfileCard() {
         <Field label="Last name" error={errors.last_name} htmlFor="ln"><input id="ln" className="input" value={form.last_name} onChange={set('last_name')} /></Field>
         <Field label="Email" hint="Contact an administrator to change your email." htmlFor="em"><input id="em" className="input" value={user!.email} disabled /></Field>
         <Field label="Phone" error={errors.phone} htmlFor="ph"><input id="ph" className="input" value={form.phone} onChange={set('phone')} /></Field>
+        <Field label="Job title" error={errors.job_title} htmlFor="jt"><input id="jt" className="input" value={form.job_title} onChange={set('job_title')} /></Field>
+        <Field label="Company" error={errors.company} htmlFor="co"><input id="co" className="input" value={form.company} onChange={set('company')} /></Field>
       </div>
       <div className="card-footer"><button className="btn btn-primary" disabled={busy}>{busy ? 'Saving…' : 'Save changes'}</button></div>
     </form>

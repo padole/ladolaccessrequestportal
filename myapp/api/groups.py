@@ -19,7 +19,7 @@ from myapp.models import STATUS_TRANSITIONS, ApprovalStatusEnum, UserRequest, db
 
 MAX_GROUP_SIZE = 50
 SHARED_FIELDS = ('host', 'purpose', 'expected_date', 'departure_date')
-VISITOR_FIELDS = ('fullname', 'company', 'email', 'phone', 'id_card')
+VISITOR_FIELDS = ('fullname', 'company', 'job_title', 'country', 'email', 'phone', 'id_card')
 # Contact details are optional per visitor in a group; only the name is required.
 OPTIONAL_VISITOR_FIELDS = ('email', 'phone')
 
@@ -54,19 +54,24 @@ def _build_requests(shared, visitors):
         data = {**shared,
                 'fullname': visitor.get('fullname'),
                 'company': clean(visitor.get('company')) or shared.get('company'),
+                'job_title': visitor.get('job_title'),
+                'country': clean(visitor.get('country')) or shared.get('country'),
                 'email': visitor.get('email'),
                 'phone': visitor.get('phone'),
                 'id_card': visitor.get('id_card') or shared.get('id_card')}
         req = UserRequest(user_id=current_user.user_id, status=ApprovalStatusEnum.DRAFT)
-        for check in (lambda: _apply_fields(req, data), lambda: _validate_for_submit(req)):
+        for check in (lambda: _apply_fields(req, data), lambda: _validate_for_submit(req, allow_backdate=True)):
             try:
                 check()
             except ApiError as e:
                 for field, msg in e.fields.items():
                     if field in OPTIONAL_VISITOR_FIELDS and msg == 'This field is required.':
                         continue
-                    # Shared fields are reported once, against the shared input.
-                    key = field if field in SHARED_FIELDS else f'visitors.{i}.{field}'
+                    # Shared fields are reported once, against the shared input. A missing ID card
+                    # is the shared default's problem unless the row chose its own.
+                    shared_error = field in SHARED_FIELDS or (
+                        field in ('id_card', 'country') and not clean(visitor.get(field)))
+                    key = field if shared_error else f'visitors.{i}.{field}'
                     problems.setdefault(key, msg)
         built.append(req)
     if problems:
@@ -120,7 +125,7 @@ def _email_requester(reqs, subject, intro, note=None):
 def create_group():
     data = payload()
     shared = {f: data.get(f) for f in SHARED_FIELDS}
-    shared.update(company=data.get('company'), id_card=data.get('id_card'))
+    shared.update(company=data.get('company'), id_card=data.get('id_card'), country=data.get('country'))
     reqs = _build_requests(shared, _parse_visitors(data.get('visitors')))
 
     # Documents are stored once and shared by every visitor in the group.

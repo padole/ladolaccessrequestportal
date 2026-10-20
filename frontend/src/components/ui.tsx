@@ -42,6 +42,8 @@ export function ErrorAlert({ message }: { message?: string | null }) {
 
 interface FieldProps {
   label: string;
+  /** Shows a red asterisk after the label. */
+  required?: boolean;
   error?: string;
   hint?: string;
   className?: string;
@@ -49,10 +51,10 @@ interface FieldProps {
   children: ReactNode;
 }
 
-export function Field({ label, error, hint, className = '', htmlFor, children }: FieldProps) {
+export function Field({ label, required, error, hint, className = '', htmlFor, children }: FieldProps) {
   return (
     <div className={`field ${error ? 'invalid' : ''} ${className}`}>
-      <label htmlFor={htmlFor}>{label}</label>
+      <label htmlFor={htmlFor}>{label}{required && <span className="req" aria-hidden="true"> *</span>}</label>
       {children}
       {error ? <span className="err">{error}</span> : hint ? <span className="hint">{hint}</span> : null}
     </div>

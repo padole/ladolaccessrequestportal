@@ -140,7 +140,7 @@ export default function GroupDetail() {
                     </td>
                   )}
                   <td className="mono">{r.request_no}</td>
-                  <td><div className="cell-main">{r.fullname}</div><div className="cell-sub">{r.company}</div></td>
+                  <td><div className="cell-main">{r.fullname}</div><div className="cell-sub">{[r.company, r.job_title, r.country].filter(Boolean).join(' · ')}</div></td>
                   <td className="hide-sm muted small">{[r.email, r.phone].filter(Boolean).join(' · ') || '—'}</td>
                   <td className="muted">{r.id_card_label ?? '—'}</td>
                   <td className="shrink"><StatusBadge status={r.status} /></td>

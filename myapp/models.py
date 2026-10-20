@@ -26,9 +26,17 @@ ROLE_LABELS = {
 
 class IDCardEnum(Enum):
     # Member names are what is stored in the database; keep them stable.
-    vistor = 'Visitor ID'
+    visitor_72h = 'Visitor ID - 72 hours'
+    visitor_15d = 'Visitor ID - 15 days'
+    visitor_1m = 'Visitor ID - 1 month'
+    visitor_3m = 'Visitor ID - 3 months'
     parmanent = 'Permanent ID'
     not_applicable = 'Not applicable'
+    # Retired: kept so older requests still load, but no longer selectable.
+    vistor = 'Visitor ID'
+
+
+RETIRED_ID_CARDS = {IDCardEnum.vistor}
 
 
 class ApprovalStatusEnum(Enum):
@@ -54,6 +62,8 @@ class User(UserMixin, db.Model):
     user_fname = db.Column(db.String(100), nullable=False)
     user_lname = db.Column(db.String(100), nullable=False)
     user_phone = db.Column(db.String(100), nullable=False)
+    user_job_title = db.Column(db.String(200), nullable=False, default='', server_default='')
+    user_company = db.Column(db.String(200), nullable=False, default='', server_default='')
     user_email = db.Column(db.String(100), nullable=False, unique=True)
     user_pwd = db.Column(db.String(200))
     role = db.Column(db.String(20), nullable=False, default=Role.USER.value, server_default=Role.USER.value)
@@ -98,6 +108,8 @@ class User(UserMixin, db.Model):
             'full_name': self.full_name,
             'email': self.user_email,
             'phone': self.user_phone,
+            'job_title': self.user_job_title,
+            'company': self.user_company,
             'role': self.role,
             'role_label': ROLE_LABELS.get(self.role, self.role),
             'is_active': self.is_active,
@@ -118,11 +130,13 @@ class UserRequest(db.Model):
     fullname = db.Column(db.String(200), nullable=False, default='')
     company = db.Column(db.String(200), nullable=False, default='')
     host = db.Column(db.String(200), nullable=False, default='', server_default='')
-    # job_role and location are no longer collected; kept for existing requests.
+    # The visitor's job title (API field "job_title"); required for a Permanent ID.
     job_role = db.Column(db.String(200), nullable=False, default='')
+    country = db.Column(db.String(100), nullable=False, default='', server_default='')
+    # location is no longer collected; kept for existing requests.
     email_address = db.Column(db.String(100), nullable=False, default='')
     phone_number = db.Column(db.String(100), nullable=False, default='')
-    id_card = db.Column(db.Enum(IDCardEnum), default=IDCardEnum.vistor)
+    id_card = db.Column(db.Enum(IDCardEnum))
     expected_date = db.Column(db.Date)
     departure_date = db.Column(db.Date)
     duration = db.Column(db.String(50), nullable=False, default='')
@@ -163,6 +177,8 @@ class UserRequest(db.Model):
             'company': self.company,
             'host': self.host,
             'job_role': self.job_role,
+            'job_title': self.job_role,
+            'country': self.country,
             'email': self.email_address,
             'phone': self.phone_number,
             'id_card': self.id_card.name if self.id_card else None,

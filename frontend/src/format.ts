@@ -31,6 +31,3 @@ export function addDaysIso(iso: string, days: number) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-// Keep in sync with MIN_NOTICE_DAYS / MAX_VISIT_DAYS in myapp/api/requests.py
-export const MIN_NOTICE_DAYS = 2;
-export const MAX_VISIT_DAYS = 30;

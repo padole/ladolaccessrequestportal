@@ -71,6 +71,8 @@ def register():
         'last_name': clean(data.get('last_name')),
         'email': clean(data.get('email')).lower(),
         'phone': clean(data.get('phone')),
+        'job_title': clean(data.get('job_title'))[:200],
+        'company': clean(data.get('company'))[:200],
     }
     password = data.get('password') or ''
     problems = {k: 'This field is required.' for k, v in fields.items() if not v}
@@ -90,6 +92,8 @@ def register():
         user_lname=fields['last_name'],
         user_email=fields['email'],
         user_phone=fields['phone'],
+        user_job_title=fields['job_title'],
+        user_company=fields['company'],
         role=Role.USER.value,  # self-registration never grants admin
     )
     user.set_password(password)
@@ -163,8 +167,11 @@ def update_profile():
         'user_fname': clean(data.get('first_name')),
         'user_lname': clean(data.get('last_name')),
         'user_phone': clean(data.get('phone')),
+        'user_job_title': clean(data.get('job_title'))[:200],
+        'user_company': clean(data.get('company'))[:200],
     }
-    names = {'user_fname': 'first_name', 'user_lname': 'last_name', 'user_phone': 'phone'}
+    names = {'user_fname': 'first_name', 'user_lname': 'last_name', 'user_phone': 'phone',
+             'user_job_title': 'job_title', 'user_company': 'company'}
     problems = {names[k]: 'This field is required.' for k, v in updates.items() if not v}
     if problems:
         return error('Please fix the highlighted fields.', 422, problems)

@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { Users, Copy, ShieldAlert, ShieldCheck, ArrowLeft, CheckCircle2, Download, ExternalLink, Paperclip, Pencil, RotateCcw, Ban, XCircle } from 'lucide-react';
+import { Trash2, Users, Copy, ShieldAlert, ShieldCheck, ArrowLeft, CheckCircle2, Download, ExternalLink, Paperclip, Pencil, RotateCcw, Ban, XCircle } from 'lucide-react';
 import { api, type ApiError } from '../api/client';
 import type { AccessRequestDetail } from '../api/types';
 import { useAuth } from '../hooks/auth';
 import { useFetch } from '../hooks/useFetch';
 import { useToast } from '../hooks/toast';
 import { formatDate, formatDateTime, todayIso } from '../format';
-import { Empty, Field, Modal, Spinner, StatusBadge } from '../components/ui';
+import { Confirm, Empty, Field, Modal, Spinner, StatusBadge } from '../components/ui';
 
 /** Statuses a reviewer can move a request to. */
 type ReviewStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'TERMINATED';
@@ -29,6 +29,7 @@ export default function RequestDetail() {
   const [note, setNote] = useState('');
   const [noteError, setNoteError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   if (loading && !data) return <Spinner fill />;
   if (error || !data) {
@@ -68,6 +69,19 @@ export default function RequestDetail() {
     }
   };
 
+  const deleteRequest = async () => {
+    setBusy(true);
+    try {
+      await api.delete(`/api/requests/${r.id}`);
+      toast(`Request ${r.request_no ?? ''} deleted.`.replace('  ', ' '));
+      navigate(r.group_no ? `/groups/${r.group_no}` : '/admin/requests', { replace: true });
+    } catch (e) {
+      toast((e as ApiError).message, 'error');
+      setBusy(false);
+      setConfirmDelete(false);
+    }
+  };
+
   return (
     <>
       <button className="backlink btn-ghost" style={{ border: 0, background: 'none', cursor: 'pointer', padding: 0 }} onClick={() => navigate(-1)}>
@@ -89,6 +103,11 @@ export default function RequestDetail() {
             </Link>
           )}
         </div>
+        {isController && (
+          <button className="btn" style={{ color: 'var(--danger)' }} onClick={() => setConfirmDelete(true)}>
+            <Trash2 size={16} /> Delete request
+          </button>
+        )}
         {r.status === 'DRAFT' && isOwner && (
           <Link className="btn btn-primary" to={`/requests/${r.id}/edit`}><Pencil size={16} /> Continue editing</Link>
         )}
@@ -104,7 +123,8 @@ export default function RequestDetail() {
             <dl className="card-body dl">
               <div><dt>Full name</dt><dd>{r.fullname || '—'}</dd></div>
               <div><dt>Company</dt><dd>{r.company || '—'}</dd></div>
-              {r.job_role && <div><dt>Job role</dt><dd>{r.job_role}</dd></div>}
+              <div><dt>Job title</dt><dd>{r.job_title || '—'}</dd></div>
+              <div><dt>Country</dt><dd>{r.country || '—'}</dd></div>
               <div><dt>ID card</dt><dd>{r.id_card_label ?? '—'}</dd></div>
               <div><dt>Email</dt><dd>{r.email ? <a href={`mailto:${r.email}`}>{r.email}</a> : '—'}</dd></div>
               <div><dt>Phone</dt><dd>{r.phone ? <a href={`tel:${r.phone}`}>{r.phone}</a> : '—'}</dd></div>
@@ -232,6 +252,17 @@ export default function RequestDetail() {
             <textarea id="note" className="textarea" autoFocus value={note} onChange={(e) => { setNote(e.target.value); setNoteError(''); }} />
           </Field>
         </Modal>
+      )}
+      {confirmDelete && (
+        <Confirm
+          title={`Delete ${r.request_no ?? 'this request'}?`}
+          message={`This permanently deletes the request for ${r.fullname || 'this visitor'} and any documents only it uses. This cannot be undone.`}
+          confirmLabel="Delete permanently"
+          tone="danger"
+          busy={busy}
+          onConfirm={deleteRequest}
+          onCancel={() => setConfirmDelete(false)}
+        />
       )}
     </>
   );

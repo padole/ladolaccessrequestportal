@@ -37,7 +37,8 @@ def list_users():
     if search:
         like = f'%{search}%'
         q = q.filter(db.or_(User.user_fname.ilike(like), User.user_lname.ilike(like),
-                            User.user_email.ilike(like), User.user_phone.ilike(like)))
+                            User.user_email.ilike(like), User.user_phone.ilike(like),
+                            User.user_company.ilike(like), User.user_job_title.ilike(like)))
     role = request.args.get('role')
     if role in {r.value for r in Role}:
         q = q.filter(User.role == role)

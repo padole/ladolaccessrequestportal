@@ -4,7 +4,7 @@ import { AuthShell } from '../components/AuthShell';
 import { ErrorAlert, Field, PasswordInput } from '../components/ui';
 import { api, type ApiError } from '../api/client';
 
-const EMPTY = { first_name: '', last_name: '', email: '', phone: '', password: '', confirm_password: '' };
+const EMPTY = { first_name: '', last_name: '', email: '', phone: '', job_title: '', company: '', password: '', confirm_password: '' };
 
 export default function Register() {
   const navigate = useNavigate();
@@ -52,6 +52,14 @@ export default function Register() {
         <Field label="Phone" error={errors.phone} htmlFor="ph">
           <input id="ph" className="input" type="tel" autoComplete="tel" value={form.phone} onChange={set('phone')} />
         </Field>
+        <div className="form-grid">
+          <Field label="Job title" error={errors.job_title} htmlFor="jt">
+            <input id="jt" className="input" autoComplete="organization-title" value={form.job_title} onChange={set('job_title')} />
+          </Field>
+          <Field label="Company" error={errors.company} htmlFor="co">
+            <input id="co" className="input" autoComplete="organization" value={form.company} onChange={set('company')} />
+          </Field>
+        </div>
         <Field label="Password" error={errors.password} hint="At least 8 characters, with letters and numbers." htmlFor="pw">
           <PasswordInput id="pw" autoComplete="new-password" value={form.password} onChange={set('password')} />
         </Field>

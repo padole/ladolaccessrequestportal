@@ -11,25 +11,23 @@ from werkzeug.utils import secure_filename
 
 from myapp.api import api_bp
 from myapp.api.utils import EMAIL_RE, ApiError, controller_required, requester_required, clean, error, frontend_url, paginate, payload, send_email
-from myapp.models import STATUS_TRANSITIONS, ApprovalStatusEnum, IDCardEnum, UserRequest, db, display_filename
+from myapp.models import (STATUS_TRANSITIONS, RETIRED_ID_CARDS, ApprovalStatusEnum, IDCardEnum, UserRequest, db,
+                          display_filename)
 
 TEXT_FIELDS = {
     # api name: (model attribute, max length)
     'fullname': ('fullname', 200),
     'company': ('company', 200),
+    'job_title': ('job_role', 200),
+    'country': ('country', 100),
     'host': ('host', 200),
     'email': ('email_address', 100),
     'phone': ('phone_number', 100),
     'purpose': ('purpose', 250),
 }
-REQUIRED_ON_SUBMIT = list(TEXT_FIELDS) + ['id_card', 'expected_date', 'departure_date']
+# Everything else is optional; job title is also required for a Permanent ID (see _validate_for_submit).
+REQUIRED_ON_SUBMIT = ['fullname', 'id_card', 'expected_date', 'departure_date', 'purpose']
 
-MIN_NOTICE_DAYS = 2   # arrival must be at least 48 hours away
-MAX_VISIT_DAYS = 30   # arrival to departure, counted inclusively
-
-
-def earliest_arrival():
-    return date.today() + timedelta(days=MIN_NOTICE_DAYS)
 
 
 # --------------------------------------------------------------------------- helpers
@@ -74,8 +72,10 @@ def _apply_fields(req, data):
         problems['email'] = 'Enter a valid email address.'
     if 'id_card' in data:
         value = data.get('id_card')
-        if value in IDCardEnum.__members__:
+        if value in IDCardEnum.__members__ and IDCardEnum[value] not in RETIRED_ID_CARDS:
             req.id_card = IDCardEnum[value]
+        elif value in IDCardEnum.__members__:
+            problems['id_card'] = 'This ID card option is no longer available. Choose another.'
         elif value:
             problems['id_card'] = 'Choose a valid ID card option.'
     if 'expected_date' in data:
@@ -93,20 +93,28 @@ def _apply_fields(req, data):
         raise ApiError('Please fix the highlighted fields.', 422, problems)
 
 
-def _validate_for_submit(req):
+def _validate_for_submit(req, allow_backdate=False):
+    """Check a request is complete before it goes for review.
+
+    allow_backdate: a request filled in and submitted in one go (single or group)
+    may have an arrival date in the past; a saved draft may not.
+    """
     problems = {}
     for name in REQUIRED_ON_SUBMIT:
         attr = TEXT_FIELDS[name][0] if name in TEXT_FIELDS else name
         if not getattr(req, attr):
             problems[name] = 'This field is required.'
-    if req.expected_date and req.expected_date < earliest_arrival():
-        problems['expected_date'] = (f'Arrival must be at least 48 hours from today '
-                                     f'(on or after {earliest_arrival():%d %b %Y}).')
-    if req.expected_date and req.departure_date and req.departure_date >= req.expected_date:
-        if (req.departure_date - req.expected_date).days + 1 > MAX_VISIT_DAYS:
-            latest = req.expected_date + timedelta(days=MAX_VISIT_DAYS - 1)
-            problems['departure_date'] = (f'A visit can last at most {MAX_VISIT_DAYS} days '
-                                          f'(depart by {latest:%d %b %Y}).')
+    if req.id_card == IDCardEnum.parmanent and not req.job_role:
+        problems['job_title'] = 'Job title is required for a Permanent ID.'
+    if req.id_card in RETIRED_ID_CARDS:
+        # Old drafts may still carry the retired plain "Visitor ID".
+        problems['id_card'] = 'Choose one of the current ID card options.'
+    today = date.today()
+    if req.expected_date and req.expected_date < today and not allow_backdate:
+        problems['expected_date'] = ('Arrival cannot be in the past for a saved draft. '
+                                     'Only a new request can be back-dated.')
+    if req.departure_date and req.departure_date < today:
+        problems['departure_date'] = 'Departure must be today or later.'
     if problems:
         raise ApiError('Please complete the highlighted fields before submitting.', 422, problems)
 
@@ -160,8 +168,8 @@ def _next_request_no():
     return f'{prefix}{seq:03d}'
 
 
-def _submit(req):
-    _validate_for_submit(req)
+def _submit(req, allow_backdate=False):
+    _validate_for_submit(req, allow_backdate)
     for _ in range(5):
         req.status = ApprovalStatusEnum.PENDING
         req.submitted_at = datetime.utcnow()
@@ -228,6 +236,12 @@ def _filtered_query():
     if group_no:
         q = q.filter(UserRequest.group_no == group_no)
 
+    id_card = request.args.get('id_card')
+    if id_card:
+        if id_card not in IDCardEnum.__members__:
+            raise ApiError('Unknown ID card filter.')
+        q = q.filter(UserRequest.id_card == IDCardEnum[id_card])
+
     search = clean(request.args.get('search'))
     if search:
         like = f'%{search}%'
@@ -262,12 +276,13 @@ def export_requests():
     rows = _filtered_query().all()
     out = io.StringIO()
     writer = csv.writer(out)
-    writer.writerow(['Request No.', 'Group No.', 'Created By', 'Created', 'Full name', 'Company', 'Host', 'Email', 'Phone',
+    writer.writerow(['Request No.', 'Group No.', 'Created By', 'Created', 'Full name', 'Company', 'Job title',
+                     'Country', 'Host', 'Email', 'Phone',
                      'ID card', 'Expected', 'Departure', 'Days', 'Status'])
     for r in rows:
         writer.writerow([
             r.request_no or 'DRAFT', r.group_no or '', r.user.full_name if r.user else '',
-            r.created_at.strftime('%Y-%m-%d') if r.created_at else '', r.fullname, r.company, r.host,
+            r.created_at.strftime('%Y-%m-%d') if r.created_at else '', r.fullname, r.company, r.job_role, r.country, r.host,
             r.email_address, r.phone_number, r.id_card.value if r.id_card else '', r.expected_date or '',
             r.departure_date or '', r.duration, r.status.name,
         ])
@@ -331,7 +346,7 @@ def create_request():
     db.session.flush()
     if action == 'submit':
         try:
-            _submit(req)
+            _submit(req, allow_backdate=True)
         except ApiError:
             db.session.rollback()
             _discard_uploads(req)
@@ -343,8 +358,12 @@ def create_request():
 
 def _discard_uploads(req):
     for name in req.documents:
+        # Group requests share files; keep any still attached to another request.
+        shared = (UserRequest.query
+                  .filter(UserRequest.request_id != req.request_id, UserRequest.document.contains(name))
+                  .first())
         path = os.path.join(current_app.config['UPLOAD_FOLDER'], name)
-        if os.path.isfile(path):
+        if not shared and os.path.isfile(path):
             os.remove(path)
 
 
@@ -366,8 +385,14 @@ def update_draft(request_id):
 
 @api_bp.delete('/requests/<int:request_id>')
 @requester_required
-def delete_draft(request_id):
-    req = _get_own_draft(request_id)
+def delete_request(request_id):
+    """Owners delete their own drafts; an Access Controller can delete any request."""
+    if current_user.is_controller:
+        req = _get_request_or_404(request_id)
+        current_app.logger.warning('Request %s (%s, %s) deleted by %s', req.request_no or f'draft {req.request_id}',
+                                   req.fullname, req.status.name, current_user.user_email)
+    else:
+        req = _get_own_draft(request_id)
     _discard_uploads(req)
     db.session.delete(req)
     db.session.commit()
