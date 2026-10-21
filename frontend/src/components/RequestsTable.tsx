@@ -115,7 +115,7 @@ export function RequestsTable({ scope, emptyAction }: { scope: 'mine' | 'all'; e
                   <th>Visitor</th>
                   {scope === 'all' && <th className="hide-sm">Requested by</th>}
                   <th>Visit dates</th>
-                  <th className="shrink">Days</th>
+                  <th className="shrink">Duration</th>
                   <th>ID card</th>
                   <th className="hide-lg">Host</th>
                   <th className="shrink">Status</th>
