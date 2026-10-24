@@ -31,12 +31,12 @@ class IDCardEnum(Enum):
     visitor_1m = 'Visitor ID - 1 month'
     visitor_3m = 'Visitor ID - 3 months'
     parmanent = 'Permanent ID'
-    not_applicable = 'Not applicable'
     # Retired: kept so older requests still load, but no longer selectable.
+    not_applicable = 'Not applicable'
     vistor = 'Visitor ID'
 
 
-RETIRED_ID_CARDS = {IDCardEnum.vistor}
+RETIRED_ID_CARDS = {IDCardEnum.vistor, IDCardEnum.not_applicable}
 
 
 class ApprovalStatusEnum(Enum):

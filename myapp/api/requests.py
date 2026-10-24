@@ -26,11 +26,22 @@ TEXT_FIELDS = {
     'purpose': ('purpose', 250),
 }
 # Everything else is optional; job title is also required for a Permanent ID (see _validate_for_submit).
-REQUIRED_ON_SUBMIT = ['fullname', 'id_card', 'expected_date', 'departure_date', 'purpose']
+REQUIRED_ON_SUBMIT = ['fullname', 'id_card', 'country', 'expected_date', 'departure_date', 'purpose']
 
 
 
 # --------------------------------------------------------------------------- helpers
+
+def is_shi_mci(company):
+    """True for SHI-MCI, ignoring case, spaces and hyphens."""
+    return ''.join(ch for ch in (company or '').lower() if ch.isalnum()) == 'shimci'
+
+
+# Only SHI-MCI visitors need an ID card and job title.
+needs_id_card = is_shi_mci
+
+MIN_NOTICE_DAYS = 2  # "48 hours" on calendar dates: arrival on or after the day after tomorrow
+
 
 def _parse_date(value, field):
     if not value:
@@ -89,6 +100,10 @@ def _apply_fields(req, data):
             req.duration = str((req.departure_date - req.expected_date).days + 1)
     else:
         req.duration = ''
+    if not needs_id_card(req.company):
+        # Only collected for SHI-MCI; drop anything left over from before the company was chosen.
+        req.id_card, req.job_role = None, ''
+        problems.pop('id_card', None)
     if problems:
         raise ApiError('Please fix the highlighted fields.', 422, problems)
 
@@ -101,6 +116,8 @@ def _validate_for_submit(req, allow_backdate=False):
     """
     problems = {}
     for name in REQUIRED_ON_SUBMIT:
+        if name == 'id_card' and not needs_id_card(req.company):
+            continue
         attr = TEXT_FIELDS[name][0] if name in TEXT_FIELDS else name
         if not getattr(req, attr):
             problems[name] = 'This field is required.'
@@ -110,7 +127,13 @@ def _validate_for_submit(req, allow_backdate=False):
         # Old drafts may still carry the retired plain "Visitor ID".
         problems['id_card'] = 'Choose one of the current ID card options.'
     today = date.today()
-    if req.expected_date and req.expected_date < today and not allow_backdate:
+    if req.expected_date and not is_shi_mci(req.company):
+        # Everyone except SHI-MCI must give 48 hours' notice; no back-dating.
+        earliest = today + timedelta(days=MIN_NOTICE_DAYS)
+        if req.expected_date < earliest:
+            problems['expected_date'] = (f'Arrival must be at least 48 hours from now (on or after '
+                                         f'{earliest:%d %b %Y}). Only SHI-MCI requests can be sooner.')
+    elif req.expected_date and req.expected_date < today and not allow_backdate:
         problems['expected_date'] = ('Arrival cannot be in the past for a saved draft. '
                                      'Only a new request can be back-dated.')
     if req.departure_date and req.departure_date < today:

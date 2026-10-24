@@ -10,6 +10,9 @@ from myapp import mail
 EMAIL_RE = re.compile(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
 MIN_PASSWORD_LENGTH = 8
 
+# Companies a user can register under. Keep in sync with frontend/src/companies.ts.
+REGISTRATION_COMPANIES = ('Ladol', 'SHI-MCI', 'Total', 'Shell', 'Exxon')
+
 
 class ApiError(Exception):
     def __init__(self, message, status=400, fields=None):

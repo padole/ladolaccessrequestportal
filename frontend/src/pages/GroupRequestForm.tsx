@@ -5,9 +5,11 @@ import { api, type ApiError } from '../api/client';
 import { ID_CARD_OPTIONS, type GroupSummary } from '../api/types';
 import { ErrorAlert, Field, Modal } from '../components/ui';
 import { RequestModeSwitch } from '../components/RequestModeSwitch';
+import { CompanySelect } from '../components/CompanySelect';
+import { COMPANIES, COMPANY_LIST_ID, isShiMci, needsIdCard } from '../companies';
 import { COUNTRIES, COUNTRY_LIST_ID } from '../countries';
 import { useToast } from '../hooks/toast';
-import { daysBetween, todayIso } from '../format';
+import { MIN_NOTICE_DAYS, addDaysIso, daysBetween, formatDate, todayIso } from '../format';
 
 const MAX_VISITORS = 50;
 const MAX_FILES = 5;
@@ -138,9 +140,15 @@ export default function GroupRequestForm() {
 
   // Same date rules the server enforces, shown as the user picks dates.
   // Group requests are always new, so arrival may be back-dated; departure can't be in the past.
+  // Visitors share one arrival date, so 48 hours' notice applies unless every visitor is SHI-MCI.
   const today = todayIso();
+  const visitorCompanies = filled.length ? filled.map((v) => v.company || shared.company) : [shared.company];
+  const needsNotice = visitorCompanies.some((c) => !isShiMci(c));
+  const noticeDate = addDaysIso(today, MIN_NOTICE_DAYS);
   const earliestDeparture = shared.expected_date && shared.expected_date > today ? shared.expected_date : today;
-  const arrivalError = '';
+  const arrivalError = needsNotice && shared.expected_date && shared.expected_date < noticeDate
+    ? `Arrival must be at least 48 hours from now (on or after ${formatDate(noticeDate)}) unless every visitor is from SHI-MCI.`
+    : '';
   const departureError = shared.departure_date && shared.expected_date && shared.departure_date < shared.expected_date
     ? 'Departure must be on or after the arrival date.'
     : shared.departure_date && shared.departure_date < today
@@ -185,7 +193,7 @@ export default function GroupRequestForm() {
       <input className={`input ${rowErr(i, k) ? 'invalid' : ''}`} value={v[k]}
         type={k === 'email' ? 'email' : k === 'phone' ? 'tel' : 'text'}
         placeholder={k === 'company' ? shared.company || 'Company' : k === 'country' ? shared.country || 'Country' : undefined}
-        list={k === 'country' ? COUNTRY_LIST_ID : undefined}
+        list={k === 'country' ? COUNTRY_LIST_ID : k === 'company' ? COMPANY_LIST_ID : undefined}
         aria-label={`Visitor ${i + 1} ${k === 'fullname' ? 'full name' : k.replace('_', ' ')}`}
         onChange={(e) => setVisitor(i, k, e.target.value)} />
       {rowErr(i, k) && <span className="cell-err">{rowErr(i, k)}</span>}
@@ -213,8 +221,8 @@ export default function GroupRequestForm() {
             {duration && <span className="badge badge-role-user">{duration} day{duration === 1 ? '' : 's'}</span>}
           </div>
           <div className="card-body form-grid">
-            <Field label="Expected arrival" required error={arrivalError || errors.expected_date} hint="Can be a past date." htmlFor="g_arrival">
-              <input id="g_arrival" type="date" className="input" value={shared.expected_date} onChange={setField('expected_date')} />
+            <Field label="Expected arrival" required error={arrivalError || errors.expected_date} hint={needsNotice ? `At least 48 hours from now (on or after ${formatDate(noticeDate)}).` : undefined} htmlFor="g_arrival">
+              <input id="g_arrival" type="date" className="input" min={needsNotice ? noticeDate : undefined} value={shared.expected_date} onChange={setField('expected_date')} />
             </Field>
             <Field label="Departure" required error={departureError || errors.departure_date} htmlFor="g_departure">
               <input id="g_departure" type="date" className="input" min={earliestDeparture}
@@ -224,18 +232,22 @@ export default function GroupRequestForm() {
               <input id="g_host" className="input" value={shared.host} onChange={setField('host')} />
             </Field>
             <Field label="Default company" error={errors.company} hint="Used for any visitor whose company is left blank." htmlFor="g_company">
-              <input id="g_company" className="input" value={shared.company} onChange={setField('company')} />
+              <CompanySelect id="g_company" allowOther value={shared.company} placeholder="Select default company"
+                onChange={(v) => { setShared((s) => ({ ...s, company: v })); setErrors((x) => ({ ...x, company: '' })); }} />
+              <datalist id={COMPANY_LIST_ID}>{COMPANIES.map((c) => <option key={c} value={c} />)}</datalist>
             </Field>
-            <Field label="Default country" error={errors.country} hint="Used for any visitor whose country is left blank." htmlFor="g_country">
+            <Field label="Default country" required error={errors.country} hint="Used for any visitor whose country is left blank." htmlFor="g_country">
               <input id="g_country" className="input" list={COUNTRY_LIST_ID} value={shared.country} onChange={setField('country')} />
               <datalist id={COUNTRY_LIST_ID}>{COUNTRIES.map((c) => <option key={c} value={c} />)}</datalist>
             </Field>
-            <Field label="Default ID card" required error={errors.id_card} hint="Used for any visitor whose ID card is left as Default." htmlFor="g_idcard">
-              <select id="g_idcard" className="select" value={shared.id_card} onChange={setField('id_card')}>
-                <option value="" disabled>Select ID card</option>
-                {ID_CARD_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-              </select>
-            </Field>
+            {needsIdCard(shared.company) && (
+              <Field label="Default ID card" required error={errors.id_card} hint="Used for any visitor whose ID card is left as Default." htmlFor="g_idcard">
+                <select id="g_idcard" className="select" value={shared.id_card} onChange={setField('id_card')}>
+                  <option value="" disabled>Select ID card</option>
+                  {ID_CARD_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+              </Field>
+            )}
             <Field label="Purpose of visit" required error={errors.purpose} className="span-2" hint={`${shared.purpose.length}/250`} htmlFor="g_purpose">
               <textarea id="g_purpose" className="textarea" maxLength={250} value={shared.purpose} onChange={setField('purpose')} />
             </Field>
@@ -256,21 +268,32 @@ export default function GroupRequestForm() {
           <div className="table-wrap">
             <table className="table visitor-table">
               <thead>
-                <tr><th>#</th><th>Full name <span className="req">*</span></th><th>Company</th><th>ID card</th><th title="Required for Permanent ID">Job title <span className="req" title="Required for Permanent ID">*</span></th><th>Country</th><th>Email</th><th>Phone</th><th /></tr>
+                <tr><th>#</th><th>Full name <span className="req">*</span></th><th>Company</th><th>ID card</th><th title="Required for Permanent ID">Job title <span className="req" title="Required for Permanent ID">*</span></th><th>Country <span className="req" title="Required, or set a default country">*</span></th><th>Email</th><th>Phone</th><th /></tr>
               </thead>
               <tbody>
                 {visitors.map((v, i) => (
                   <tr key={i}>
                     <td className="row-no">{i + 1}</td>
                     {(['fullname', 'company'] as const).map((k) => textCell(v, i, k))}
-                    <td>
-                      <select className="select" value={v.id_card} aria-label={`Visitor ${i + 1} ID card`}
-                        onChange={(e) => setVisitor(i, 'id_card', e.target.value)}>
-                        <option value="">Default</option>
-                        {ID_CARD_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-                      </select>
-                    </td>
-                    {(['job_title', 'country', 'email', 'phone'] as const).map((k) => textCell(v, i, k))}
+                    {!needsIdCard(v.company || shared.company) ? (
+                      <>
+                        <td className="muted" title="Only needed for SHI-MCI">—</td>
+                        <td className="muted" title="Only needed for SHI-MCI">—</td>
+                      </>
+                    ) : (
+                      <>
+                        <td>
+                          <select className="select" value={v.id_card} aria-label={`Visitor ${i + 1} ID card`}
+                            onChange={(e) => setVisitor(i, 'id_card', e.target.value)}>
+                            <option value="">Default</option>
+                            {ID_CARD_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                          </select>
+                          {rowErr(i, 'id_card') && <span className="cell-err">{rowErr(i, 'id_card')}</span>}
+                        </td>
+                        {textCell(v, i, 'job_title')}
+                      </>
+                    )}
+                    {(['country', 'email', 'phone'] as const).map((k) => textCell(v, i, k))}
                     <td className="shrink">
                       <button type="button" className="icon-btn" aria-label={`Remove visitor ${i + 1}`} onClick={() => removeRow(i)}><Trash2 size={15} /></button>
                     </td>
@@ -284,7 +307,7 @@ export default function GroupRequestForm() {
               onClick={() => setVisitors((vs) => [...vs, blankVisitor()])}><Plus size={14} /> Add visitor</button>
             <button type="button" className="btn btn-sm btn-ghost" disabled={visitors.length >= MAX_VISITORS}
               onClick={() => setVisitors((vs) => [...vs, ...Array.from({ length: Math.min(5, MAX_VISITORS - vs.length) }, blankVisitor)])}>Add 5 rows</button>
-            <span className="muted small">Full name is required, and job title for a Permanent ID. Other columns are optional.</span>
+            <span className="muted small">Full name and country are required (country can come from the default), and job title for a Permanent ID. ID card and job title are only needed for SHI-MCI visitors.</span>
           </div>
         </div>
 

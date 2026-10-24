@@ -4,6 +4,7 @@ import type { User } from '../api/types';
 import { useAuth } from '../hooks/auth';
 import { useToast } from '../hooks/toast';
 import { Field, PasswordInput } from '../components/ui';
+import { CompanySelect } from '../components/CompanySelect';
 import { formatDateTime } from '../format';
 import { RoleBadge } from '../components/RoleControls';
 
@@ -44,7 +45,10 @@ function ProfileCard() {
         <Field label="Email" hint="Contact an administrator to change your email." htmlFor="em"><input id="em" className="input" value={user!.email} disabled /></Field>
         <Field label="Phone" error={errors.phone} htmlFor="ph"><input id="ph" className="input" value={form.phone} onChange={set('phone')} /></Field>
         <Field label="Job title" error={errors.job_title} htmlFor="jt"><input id="jt" className="input" value={form.job_title} onChange={set('job_title')} /></Field>
-        <Field label="Company" error={errors.company} htmlFor="co"><input id="co" className="input" value={form.company} onChange={set('company')} /></Field>
+        <Field label="Company" error={errors.company} htmlFor="co">
+          <CompanySelect id="co" value={form.company} keepValue={user!.company || undefined}
+            onChange={(v) => setForm((f) => ({ ...f, company: v }))} />
+        </Field>
       </div>
       <div className="card-footer"><button className="btn btn-primary" disabled={busy}>{busy ? 'Saving…' : 'Save changes'}</button></div>
     </form>

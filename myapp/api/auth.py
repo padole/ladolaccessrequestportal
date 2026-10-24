@@ -6,7 +6,8 @@ from flask_wtf.csrf import generate_csrf
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 
 from myapp.api import api_bp
-from myapp.api.utils import EMAIL_RE, clean, error, frontend_url, password_problem, payload, send_email
+from myapp.api.utils import (EMAIL_RE, REGISTRATION_COMPANIES, clean, error, frontend_url, password_problem, payload,
+                             send_email)
 from myapp.models import Role, User, db
 
 RESET_SALT = 'password-reset'
@@ -76,6 +77,8 @@ def register():
     }
     password = data.get('password') or ''
     problems = {k: 'This field is required.' for k, v in fields.items() if not v}
+    if fields['company'] and fields['company'] not in REGISTRATION_COMPANIES:
+        problems['company'] = 'Choose your company from the list.'
     if fields['email'] and not EMAIL_RE.match(fields['email']):
         problems['email'] = 'Enter a valid email address.'
     if pw := password_problem(password):
@@ -173,6 +176,10 @@ def update_profile():
     names = {'user_fname': 'first_name', 'user_lname': 'last_name', 'user_phone': 'phone',
              'user_job_title': 'job_title', 'user_company': 'company'}
     problems = {names[k]: 'This field is required.' for k, v in updates.items() if not v}
+    # Existing users may keep a company from before the list existed; new choices must come from it.
+    company = updates['user_company']
+    if company and company != current_user.user_company and company not in REGISTRATION_COMPANIES:
+        problems['company'] = 'Choose your company from the list.'
     if problems:
         return error('Please fix the highlighted fields.', 422, problems)
     for attr, value in updates.items():

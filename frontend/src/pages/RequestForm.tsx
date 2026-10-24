@@ -5,10 +5,12 @@ import { api, type ApiError } from '../api/client';
 import { ID_CARD_OPTIONS, currentIdCard, type AccessRequestDetail } from '../api/types';
 import { ErrorAlert, Field, Spinner } from '../components/ui';
 import { RequestModeSwitch } from '../components/RequestModeSwitch';
+import { isShiMci, needsIdCard } from '../companies';
+import { CompanySelect } from '../components/CompanySelect';
 import { COUNTRIES, COUNTRY_LIST_ID } from '../countries';
 import { useAuth } from '../hooks/auth';
 import { useToast } from '../hooks/toast';
-import { daysBetween, todayIso } from '../format';
+import { MIN_NOTICE_DAYS, addDaysIso, daysBetween, formatDate, todayIso } from '../format';
 
 const MAX_FILES = 5;
 const MAX_BYTES = 10 * 1024 * 1024;
@@ -90,6 +92,9 @@ export default function RequestForm() {
       company: user.company || f.company, job_title: user.job_title || f.job_title }));
   };
 
+  // ID card and job title are only collected for SHI-MCI visitors.
+  const showIdCard = needsIdCard(form.company);
+
   const keptExisting = existing.filter((d) => !removed.includes(d.name));
   const totalFiles = keptExisting.length + files.length;
 
@@ -113,12 +118,21 @@ export default function RequestForm() {
     ? daysBetween(form.expected_date, form.departure_date) : null;
 
   // Same rules the server enforces on submit, shown as the user picks dates.
-  // A new request can be back-dated; a saved draft being edited can't.
+  // Everyone except SHI-MCI gives 48 hours' notice. SHI-MCI may back-date a new
+  // request, but a saved draft being edited must arrive today or later.
   const today = todayIso();
-  const earliestArrival = editing ? today : undefined;
+  const shiMci = isShiMci(form.company);
+  const noticeDate = addDaysIso(today, MIN_NOTICE_DAYS);
+  const earliestArrival = !shiMci ? noticeDate : editing ? today : undefined;
   const earliestDeparture = form.expected_date && form.expected_date > today ? form.expected_date : today;
-  const arrivalError = editing && form.expected_date && form.expected_date < today
-    ? 'Arrival cannot be in the past for a saved draft. Only a new request can be back-dated.' : '';
+  const arrivalError = !form.expected_date ? ''
+    : !shiMci && form.expected_date < noticeDate
+      ? `Arrival must be at least 48 hours from now (on or after ${formatDate(noticeDate)}). Only SHI-MCI requests can be sooner.`
+      : shiMci && editing && form.expected_date < today
+        ? 'Arrival cannot be in the past for a saved draft. Only a new request can be back-dated.' : '';
+  const arrivalHint = !shiMci
+    ? `At least 48 hours from now (on or after ${formatDate(noticeDate)}).`
+    : editing ? 'Today or later.' : undefined;
   const departureError = form.departure_date && form.expected_date && form.departure_date < form.expected_date
     ? 'Departure must be on or after the arrival date.'
     : form.departure_date && form.departure_date < today
@@ -200,22 +214,27 @@ export default function RequestForm() {
               <input id="fullname" className="input" value={form.fullname} onChange={set('fullname')} />
             </Field>
             <Field label="Company" error={errors.company} htmlFor="company">
-              <input id="company" className="input" value={form.company} onChange={set('company')} />
+              <CompanySelect id="company" allowOther value={form.company}
+                onChange={(v) => { setForm((f) => ({ ...f, company: v })); setErrors((x) => ({ ...x, company: '' })); }} />
             </Field>
+            {showIdCard && (
             <Field label="ID card" required error={errors.id_card} htmlFor="id_card">
               <select id="id_card" className="select" value={form.id_card} onChange={set('id_card')}>
                 <option value="" disabled>Select ID card</option>
                 {ID_CARD_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
             </Field>
-            <Field label="Country" error={errors.country} htmlFor="country">
+            )}
+            <Field label="Country" required error={errors.country} htmlFor="country">
               <input id="country" className="input" list={COUNTRY_LIST_ID} autoComplete="country-name" value={form.country} onChange={set('country')} />
               <datalist id={COUNTRY_LIST_ID}>{COUNTRIES.map((c) => <option key={c} value={c} />)}</datalist>
             </Field>
+            {showIdCard && (
             <Field label="Job title" required={form.id_card === 'parmanent'}
               error={errors.job_title} hint={form.id_card === 'parmanent' ? 'Required for Permanent ID.' : 'Required if the ID card is Permanent ID.'} htmlFor="job_title">
               <input id="job_title" className="input" value={form.job_title} onChange={set('job_title')} />
             </Field>
+            )}
             <Field label="Email" error={errors.email} hint="Status updates are sent here and to you." htmlFor="email">
               <input id="email" type="email" className="input" value={form.email} onChange={set('email')} />
             </Field>
@@ -228,7 +247,7 @@ export default function RequestForm() {
         <div className="card">
           <div className="card-header"><h2>Visit</h2>{duration && <span className="badge badge-user">{duration} day{duration === 1 ? '' : 's'}</span>}</div>
           <div className="card-body form-grid">
-            <Field label="Expected arrival" required error={arrivalError || errors.expected_date} hint={editing ? 'Today or later.' : 'Can be a past date when you submit this request now.'} htmlFor="expected_date">
+            <Field label="Expected arrival" required error={arrivalError || errors.expected_date} hint={arrivalHint} htmlFor="expected_date">
               <input id="expected_date" type="date" className="input" min={earliestArrival} value={form.expected_date} onChange={set('expected_date')} />
             </Field>
             <Field label="Departure" required error={departureError || errors.departure_date} htmlFor="departure_date">

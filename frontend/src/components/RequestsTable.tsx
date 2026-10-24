@@ -90,6 +90,7 @@ export function RequestsTable({ scope, emptyAction }: { scope: 'mine' | 'all'; e
             <option value="">All ID cards</option>
             {ID_CARD_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
             <option value="vistor">Visitor ID (old)</option>
+            <option value="not_applicable">Not applicable (old)</option>
           </select>
           <button className={`btn ${showDates ? 'btn-primary' : ''}`} onClick={() => setShowDates((s) => !s)}>
             <SlidersHorizontal size={15} /> Filter by Dates

@@ -12,7 +12,7 @@ from sqlalchemy.exc import IntegrityError
 
 from myapp.api import api_bp
 from myapp.api.requests import (
-    _apply_fields, _discard_uploads, _save_uploads, _validate_for_submit, apply_review,
+    _apply_fields, _discard_uploads, _save_uploads, _validate_for_submit, apply_review, needs_id_card,
 )
 from myapp.api.utils import ApiError, clean, controller_required, frontend_url, payload, requester_required, send_email
 from myapp.models import STATUS_TRANSITIONS, ApprovalStatusEnum, UserRequest, db
@@ -69,8 +69,10 @@ def _build_requests(shared, visitors):
                         continue
                     # Shared fields are reported once, against the shared input. A missing ID card
                     # is the shared default's problem unless the row chose its own.
+                    # A missing ID card goes on the row unless the default ID card is shown (SHI-MCI default company).
                     shared_error = field in SHARED_FIELDS or (
-                        field in ('id_card', 'country') and not clean(visitor.get(field)))
+                        field in ('id_card', 'country') and not clean(visitor.get(field))
+                        and not (field == 'id_card' and not needs_id_card(shared.get('company'))))
                     key = field if shared_error else f'visitors.{i}.{field}'
                     problems.setdefault(key, msg)
         built.append(req)

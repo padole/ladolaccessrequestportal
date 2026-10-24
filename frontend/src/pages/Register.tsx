@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AuthShell } from '../components/AuthShell';
+import { CompanySelect } from '../components/CompanySelect';
 import { ErrorAlert, Field, PasswordInput } from '../components/ui';
 import { api, type ApiError } from '../api/client';
 
@@ -57,7 +58,8 @@ export default function Register() {
             <input id="jt" className="input" autoComplete="organization-title" value={form.job_title} onChange={set('job_title')} />
           </Field>
           <Field label="Company" error={errors.company} htmlFor="co">
-            <input id="co" className="input" autoComplete="organization" value={form.company} onChange={set('company')} />
+            <CompanySelect id="co" value={form.company}
+              onChange={(v) => { setForm((f) => ({ ...f, company: v })); setErrors((x) => ({ ...x, company: '' })); }} />
           </Field>
         </div>
         <Field label="Password" error={errors.password} hint="At least 8 characters, with letters and numbers." htmlFor="pw">

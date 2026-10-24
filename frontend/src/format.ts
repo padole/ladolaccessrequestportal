@@ -24,6 +24,9 @@ export function todayIso() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
+// Keep in sync with MIN_NOTICE_DAYS in myapp/api/requests.py: "48 hours" on calendar dates.
+export const MIN_NOTICE_DAYS = 2;
+
 /** Add whole days to a YYYY-MM-DD date. */
 export function addDaysIso(iso: string, days: number) {
   const d = new Date(`${iso}T00:00:00`);

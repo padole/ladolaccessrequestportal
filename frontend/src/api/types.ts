@@ -26,7 +26,8 @@ export interface User {
 }
 
 export type Status = 'DRAFT' | 'PENDING' | 'APPROVED' | 'REJECTED' | 'TERMINATED' | 'EXPIRED';
-export type IdCard = 'visitor_72h' | 'visitor_15d' | 'visitor_1m' | 'visitor_3m' | 'parmanent' | 'not_applicable'
+export type IdCard = 'visitor_72h' | 'visitor_15d' | 'visitor_1m' | 'visitor_3m' | 'parmanent'
+  | 'not_applicable' // retired, only on older requests
   | 'vistor'; // retired plain "Visitor ID", only on older requests
 
 export const ID_CARD_OPTIONS: { value: IdCard; label: string }[] = [
@@ -35,7 +36,6 @@ export const ID_CARD_OPTIONS: { value: IdCard; label: string }[] = [
   { value: 'visitor_1m', label: 'Visitor ID - 1 month' },
   { value: 'visitor_3m', label: 'Visitor ID - 3 months' },
   { value: 'parmanent', label: 'Permanent ID' },
-  { value: 'not_applicable', label: 'Not applicable' },
 ];
 
 /** An ID card value the form can still offer; retired values come back empty so the user re-picks. */

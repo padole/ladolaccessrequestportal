@@ -7,6 +7,7 @@ export function AuthShell({ title, subtitle, children }: { title: string; subtit
     <div className="auth">
       <div className="auth-art" style={{ backgroundImage: 'url(/hero.jpeg)' }}>
         <h2>LADOL Integrated Logistics Free Zone Enterprise</h2>
+        <p>Requests must be submitted at least 48 hours before the visitor arrives (except SHI-MCI).</p>
       </div>
       <div className="auth-panel">
         <ThemeToggle floating />
