@@ -35,9 +35,11 @@ def csrf_token():
 
 @api_bp.get('/auth/me')
 def me():
+    from myapp.api.microsoft import microsoft_enabled
+    sign_in = {'microsoft': microsoft_enabled(), 'microsoft_domains': current_app.config['MS_ALLOWED_DOMAINS']}
     if not current_user.is_authenticated:
-        return jsonify(user=None)
-    return jsonify(user=current_user.to_dict())
+        return jsonify(user=None, sign_in=sign_in)
+    return jsonify(user=current_user.to_dict(), sign_in=sign_in)
 
 
 @api_bp.post('/auth/login')

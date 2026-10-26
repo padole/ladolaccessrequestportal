@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AuthShell } from '../components/AuthShell';
+import { MicrosoftSignIn } from '../components/MicrosoftSignIn';
 import { CompanySelect } from '../components/CompanySelect';
 import { ErrorAlert, Field, PasswordInput } from '../components/ui';
 import { api, type ApiError } from '../api/client';
@@ -38,6 +39,7 @@ export default function Register() {
   return (
     <AuthShell title="Create an account" subtitle="Register to submit and track site access requests.">
       <ErrorAlert message={error} />
+      <MicrosoftSignIn />
       <form onSubmit={submit} noValidate>
         <div className="form-grid">
           <Field label="First name" error={errors.first_name} htmlFor="fn">

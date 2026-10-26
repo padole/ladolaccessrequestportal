@@ -12,6 +12,7 @@ _NEW_COLUMNS = [
     ('user', 'last_login_at', 'DATETIME NULL'),
     ('user', 'user_job_title', "VARCHAR(200) NOT NULL DEFAULT ''"),
     ('user', 'user_company', "VARCHAR(200) NOT NULL DEFAULT ''"),
+    ('user', 'ms_oid', 'VARCHAR(64) NULL'),
     ('user_request', 'updated_at', 'DATETIME NULL'),
     ('user_request', 'submitted_at', 'DATETIME NULL'),
     ('user_request', 'review_note', 'TEXT NULL'),
@@ -46,6 +47,10 @@ def upgrade_legacy_schema():
         if 'ix_user_request_group_no' not in {i['name'] for i in inspector.get_indexes('user_request')}:
             conn.execute(text('CREATE INDEX ix_user_request_group_no ON user_request (group_no)'))
             changes.append('indexed user_request.group_no')
+
+        if 'ix_user_ms_oid' not in {i['name'] for i in inspector.get_indexes('user')}:
+            conn.execute(text(f'CREATE UNIQUE INDEX ix_user_ms_oid ON {_quote("user")} (ms_oid)'))
+            changes.append('indexed user.ms_oid')
 
         request_cols = {c['name']: c for c in inspector.get_columns('user_request')}
         if 'document' not in request_cols and 'documents' in request_cols:

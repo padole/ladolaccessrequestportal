@@ -54,5 +54,12 @@ class Config:
     # Public URL of the React app, used to build links in emails
     FRONTEND_URL = os.environ.get('FRONTEND_URL', '')
 
+    # Sign in with Microsoft 365 (Entra ID). Leave the IDs empty to hide the button.
+    MS_TENANT_ID = os.environ.get('MS_TENANT_ID', '').strip()
+    MS_CLIENT_ID = os.environ.get('MS_CLIENT_ID', '').strip()
+    MS_CLIENT_SECRET = os.environ.get('MS_CLIENT_SECRET', '').strip()
+    MS_ALLOWED_DOMAINS = [d.strip().lower().lstrip('@')
+                          for d in os.environ.get('MS_ALLOWED_DOMAINS', 'ladol.com').split(',') if d.strip()]
+
     # Built React app served by Flask in production
     FRONTEND_DIST = os.path.join(BASE_DIR, 'frontend', 'dist')

@@ -70,6 +70,8 @@ class User(UserMixin, db.Model):
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     last_login_at = db.Column(db.DateTime)
+    # Microsoft Entra ID object id, set the first time the user signs in with Microsoft.
+    ms_oid = db.Column(db.String(64), unique=True, index=True)
 
     def get_id(self):
         return str(self.user_id)
@@ -115,6 +117,8 @@ class User(UserMixin, db.Model):
             'is_active': self.is_active,
             'created_at': _iso(self.created_at),
             'last_login_at': _iso(self.last_login_at),
+            'microsoft_linked': bool(self.ms_oid),
+            'has_password': bool(self.user_pwd),
         }
 
 

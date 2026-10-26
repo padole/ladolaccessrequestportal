@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { api, type ApiError } from '../api/client';
 import type { User } from '../api/types';
 import { useAuth } from '../hooks/auth';
@@ -11,6 +12,9 @@ import { RoleBadge } from '../components/RoleControls';
 function ProfileCard() {
   const { user, setUser } = useAuth();
   const toast = useToast();
+  // First Microsoft sign-in without a job title or phone in Microsoft 365 lands here.
+  const [params, setParams] = useSearchParams();
+  const completing = params.has('complete') && !(user!.job_title && user!.phone);
   const [form, setForm] = useState({
     first_name: user!.first_name, last_name: user!.last_name, phone: user!.phone,
     job_title: user!.job_title ?? '', company: user!.company ?? '',
@@ -25,6 +29,7 @@ function ProfileCard() {
       const res = await api.patch<{ user: User }>('/api/auth/profile', form);
       setUser(res.user);
       setErrors({});
+      if (completing) setParams({}, { replace: true });
       toast('Profile updated.');
     } catch (err) {
       setErrors((err as ApiError).fields);
@@ -39,6 +44,11 @@ function ProfileCard() {
   return (
     <form className="card" onSubmit={submit} noValidate>
       <div className="card-header"><h2>Profile</h2></div>
+      {completing && (
+        <div className="card-body" style={{ paddingBottom: 0 }}>
+          <div className="alert alert-info">Welcome! Add your job title and phone number to finish setting up your account.</div>
+        </div>
+      )}
       <div className="card-body form-grid">
         <Field label="First name" error={errors.first_name} htmlFor="fn"><input id="fn" className="input" value={form.first_name} onChange={set('first_name')} /></Field>
         <Field label="Last name" error={errors.last_name} htmlFor="ln"><input id="ln" className="input" value={form.last_name} onChange={set('last_name')} /></Field>
@@ -56,6 +66,7 @@ function ProfileCard() {
 }
 
 function PasswordCard() {
+  const { user } = useAuth();
   const toast = useToast();
   const empty = { current_password: '', new_password: '', confirm_password: '' };
   const [form, setForm] = useState(empty);
@@ -79,6 +90,20 @@ function PasswordCard() {
   };
 
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) => setForm((f) => ({ ...f, [k]: e.target.value }));
+
+  if (!user!.has_password) {
+    return (
+      <div className="card">
+        <div className="card-header"><h2>Password</h2></div>
+        <div className="card-body">
+          <p className="muted">
+            You sign in with your Microsoft 365 account, so this portal has no password for you. To also sign in
+            with a password, sign out and use <Link to="/forgot-password">Forgot password</Link> to set one.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <form className="card" onSubmit={submit} noValidate>
@@ -112,6 +137,7 @@ export default function Account() {
           <h1>Profile &amp; security</h1>
           <p className="muted">
             Signed in as {user?.email} · {user && <RoleBadge role={user.role} />}
+            {user?.microsoft_linked && <> · Microsoft 365 account linked</>}
             {user?.last_login_at && <> · Last sign-in {formatDateTime(user.last_login_at)}</>}
           </p>
         </div>

@@ -22,6 +22,10 @@ export interface User {
   is_active: boolean;
   created_at: string | null;
   last_login_at: string | null;
+  /** Signed in with Microsoft 365 at least once. */
+  microsoft_linked: boolean;
+  /** False for accounts that only sign in with Microsoft. */
+  has_password: boolean;
   request_counts?: Record<Exclude<Status, 'DRAFT'>, number>;
 }
 

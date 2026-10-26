@@ -2,8 +2,15 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { api, onUnauthorized } from '../api/client';
 import type { User } from '../api/types';
 
+/** Which sign-in methods the portal offers. */
+export interface SignInOptions {
+  microsoft: boolean;
+  microsoft_domains: string[];
+}
+
 interface AuthState {
   user: User | null;
+  signIn: SignInOptions;
   loading: boolean;
   /** Reviews requests, manages users and roles. */
   isController: boolean;
@@ -22,11 +29,13 @@ const AuthContext = createContext<AuthState | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [signIn, setSignIn] = useState<SignInOptions>({ microsoft: false, microsoft_domains: [] });
 
   const refresh = useCallback(async () => {
     try {
-      const data = await api.get<{ user: User | null }>('/api/auth/me');
+      const data = await api.get<{ user: User | null; sign_in?: SignInOptions }>('/api/auth/me');
       setUser(data.user);
+      if (data.sign_in) setSignIn(data.sign_in);
     } catch {
       setUser(null);
     } finally {
@@ -56,12 +65,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo(
     () => ({
-      user, loading, login, logout, refresh, setUser,
+      user, loading, signIn, login, logout, refresh, setUser,
       isController: user?.role === 'access_controller',
       isAccessAdmin: user?.role === 'access_admin',
       canViewAll: user?.role === 'access_controller' || user?.role === 'access_admin',
     }),
-    [user, loading, login, logout, refresh],
+    [user, loading, signIn, login, logout, refresh],
   );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

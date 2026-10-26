@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { AuthShell } from '../components/AuthShell';
+import { MicrosoftSignIn } from '../components/MicrosoftSignIn';
 import { ErrorAlert, Field, PasswordInput } from '../components/ui';
 import { useAuth } from '../hooks/auth';
 import type { ApiError } from '../api/client';
@@ -11,6 +12,9 @@ export default function Login() {
   const location = useLocation();
   const from = (location.state as { from?: string } | null)?.from ?? '/dashboard';
   const notice = (location.state as { notice?: string } | null)?.notice;
+  // Set by the server when a Microsoft sign-in comes back with a problem.
+  const [params] = useSearchParams();
+  const msError = params.get('ms_error');
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -35,7 +39,8 @@ export default function Login() {
   return (
     <AuthShell title="Sign in" subtitle="Welcome back. Sign in to manage your access requests.">
       {notice && <div className="alert alert-success">{notice}</div>}
-      <ErrorAlert message={error} />
+      <ErrorAlert message={error ?? msError} />
+      <MicrosoftSignIn next={from} />
       <form onSubmit={submit} noValidate>
         <Field label="Email" htmlFor="email">
           <input id="email" className="input" type="email" autoComplete="email" required autoFocus

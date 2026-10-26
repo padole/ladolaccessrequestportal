@@ -46,6 +46,8 @@ Flask serves `frontend/dist` and falls back to `index.html` for client-side rout
 
 For a free review deployment, see [docs/DEPLOY_PYTHONANYWHERE.md](docs/DEPLOY_PYTHONANYWHERE.md).
 
+Staff can also sign in with their `@ladol.com` Microsoft 365 account. Setup steps are in [docs/MICROSOFT_SIGN_IN.md](docs/MICROSOFT_SIGN_IN.md).
+
 ## Notes
 
 - Uploaded documents are stored in `UPLOAD_FOLDER` (default `./uploads`, outside the web root). They can only be downloaded by the request owner, an Access Controller or an Access Admin.
