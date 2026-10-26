@@ -106,9 +106,6 @@ button { font: inherit; }
 .btn-sm { height: 30px; padding: 0 10px; font-size: 13px; }
 .btn-block { width: 100%; }
 .btn-microsoft { font-weight: 600; gap: 10px; }
-.auth-divider { display: flex; align-items: center; gap: 10px; color: var(--text-faint); font-size: 12.5px; margin: 6px 0 2px; }
-.auth-divider::before, .auth-divider::after { content: ''; flex: 1; border-top: 1px solid var(--border); }
-.center { text-align: center; }
 .icon-btn {
   display: inline-flex; align-items: center; justify-content: center;
   width: 30px; height: 30px; border-radius: var(--radius-sm); border: 0;

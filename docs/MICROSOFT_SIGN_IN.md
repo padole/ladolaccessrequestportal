@@ -114,7 +114,16 @@ The free plan only allows connections to approved sites. `login.microsoftonline.
 
 ### On your own computer
 
-Add the same `MS_` lines to your local `.env`, keep `FRONTEND_URL=http://localhost:5180`, run `pip install -r requirements.txt`, and restart `python app.py`.
+Add the same `MS_` lines to your local `.env`, run `pip install -r requirements.txt`, and restart `python app.py`.
+
+`FRONTEND_URL` must use **`localhost`**, never `127.0.0.1`: the Azure portal doesn't accept `http://127.0.0.1` redirect addresses. Microsoft ignores the port number for `localhost`, so the address from Step 4 covers both:
+
+- `FRONTEND_URL=http://localhost:5180` when you use the Vite dev server
+- `FRONTEND_URL=http://localhost:8082` when Flask serves the built app
+
+Open the portal at that same address in your browser. If you start at `127.0.0.1` and come back to `localhost`, the sign-in session is lost.
+
+`.env` is only read when the API starts. After changing it, stop every running copy of `app.py`, including any started from VS Code, before starting it again.
 
 ---
 
@@ -129,7 +138,7 @@ Add the same `MS_` lines to your local `.env`, keep `FRONTEND_URL=http://localho
 | What you see | What to do |
 |---|---|
 | No Microsoft button | One of `MS_TENANT_ID`, `MS_CLIENT_ID`, `MS_CLIENT_SECRET` is empty in `.env`, or the web app wasn't reloaded. |
-| Microsoft error **AADSTS50011** (redirect URI mismatch) | The address in Step 2 or 4 doesn't exactly match `FRONTEND_URL` + `/api/auth/microsoft/callback`. Check http vs https and any trailing slash. |
+| Microsoft error **AADSTS50011** (redirect URI mismatch) | The address in Step 2 or 4 doesn't exactly match `FRONTEND_URL` + `/api/auth/microsoft/callback`. Check http vs https and any trailing slash. On your own computer, use `localhost` rather than `127.0.0.1` in `FRONTEND_URL`. |
 | Microsoft error **AADSTS7000215** (invalid client secret) | You copied the **Secret ID** instead of the **Value**, or the secret expired. Create a new one (Step 5). |
 | Microsoft error **AADSTS50105** (not assigned) | Assignment is required (Step 7) and that person isn't assigned. |
 | "Need admin approval" from Microsoft | Admin consent wasn't granted (Step 6). |

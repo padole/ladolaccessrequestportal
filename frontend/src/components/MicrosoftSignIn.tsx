@@ -15,16 +15,11 @@ function MicrosoftLogo() {
 export function MicrosoftSignIn({ next }: { next?: string }) {
   const { signIn } = useAuth();
   if (!signIn.microsoft) return null;
-  const domains = signIn.microsoft_domains.map((d) => `@${d}`).join(' or ');
   // A full-page navigation: the server redirects to Microsoft and back.
   const href = `/api/auth/microsoft/login${next ? `?next=${encodeURIComponent(next)}` : ''}`;
   return (
-    <div className="stack-sm">
-      <a className="btn btn-block btn-microsoft" href={href}>
-        <MicrosoftLogo /> Sign in with Microsoft
-      </a>
-      {domains && <p className="faint small center">Staff with an {domains} Microsoft 365 account.</p>}
-      <div className="auth-divider"><span>or use your email and password</span></div>
-    </div>
+    <a className="btn btn-block btn-microsoft" href={href}>
+      <MicrosoftLogo /> Sign in with Microsoft
+    </a>
   );
 }

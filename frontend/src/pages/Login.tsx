@@ -40,7 +40,6 @@ export default function Login() {
     <AuthShell title="Sign in" subtitle="Welcome back. Sign in to manage your access requests.">
       {notice && <div className="alert alert-success">{notice}</div>}
       <ErrorAlert message={error ?? msError} />
-      <MicrosoftSignIn next={from} />
       <form onSubmit={submit} noValidate>
         <Field label="Email" htmlFor="email">
           <input id="email" className="input" type="email" autoComplete="email" required autoFocus
@@ -61,6 +60,7 @@ export default function Login() {
           {busy ? 'Signing in…' : 'Sign in'}
         </button>
       </form>
+      <MicrosoftSignIn next={from} />
       <p className="muted">
         New to the portal? <Link to="/register">Create an account</Link>
       </p>

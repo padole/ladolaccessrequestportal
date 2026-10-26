@@ -39,7 +39,6 @@ export default function Register() {
   return (
     <AuthShell title="Create an account" subtitle="Register to submit and track site access requests.">
       <ErrorAlert message={error} />
-      <MicrosoftSignIn />
       <form onSubmit={submit} noValidate>
         <div className="form-grid">
           <Field label="First name" error={errors.first_name} htmlFor="fn">
@@ -72,6 +71,7 @@ export default function Register() {
         </Field>
         <button className="btn btn-primary btn-block" disabled={busy}>{busy ? 'Creating account…' : 'Create account'}</button>
       </form>
+      <MicrosoftSignIn />
       <p className="muted">Already registered? <Link to="/login">Sign in</Link></p>
     </AuthShell>
   );
